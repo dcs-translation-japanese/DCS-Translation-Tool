@@ -155,8 +155,8 @@ public sealed class FileContentInspector : IFileContentInspector {
     private static bool HasUtf32Bom( ReadOnlySpan<byte> bytes ) {
         return bytes switch
         {
-            [0xFF, 0xFE, 0x00, 0x00, ..] => true, // UTF-32LE BOM
-            [0x00, 0x00, 0xFE, 0xFF, ..] => true, // UTF-32BE BOM
+        [0xFF, 0xFE, 0x00, 0x00, ..] => true, // UTF-32LE BOM
+        [0x00, 0x00, 0xFE, 0xFF, ..] => true, // UTF-32BE BOM
             _ => false
         };
     }

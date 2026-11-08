@@ -22,7 +22,7 @@
 
     <ItemGroup>
         <PackageReference Include="Caliburn.Micro" Version="5.0.258" />
-        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
+        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.142" />
         <PackageReference Include="MaterialDesignThemes" Version="5.4.0" />
         <PackageReference Include="MoonSharp" Version="2.0.0" />
     </ItemGroup>
@@ -49,7 +49,7 @@
     <!-- self-contained publishのapphostからlib配下のアプリ本体を起動する。 -->
     <Target Name="CreatePublishAppHostForLib"
             BeforeTargets="ComputeResolvedFilesToPublishList"
-            DependsOnTargets="_CreateAppHost;_GetAppHostPaths;_GetAppHostCreationConfiguration"
+            DependsOnTargets="_CreateAppHost;_GetAppHostPaths"
             Condition="'$(_IsPublishing)' == 'true' and '$(SelfContained)' == 'true' and '$(PublishSingleFile)' != 'true' and '$(UseAppHost)' == 'true' and Exists('$(AppHostSourcePath)')">
         <CreateAppHost AppHostSourcePath="$(AppHostSourcePath)"
                        AppHostDestinationPath="$(AppHostIntermediatePath)"
@@ -58,8 +58,7 @@
                        WindowsGraphicalUserInterface="$(_UseWindowsGraphicalUserInterface)"
                        Retries="$(CopyRetryCount)"
                        RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-                       EnableMacOSCodeSign="$(_EnableMacOSCodeSign)"
-                       DisableCetCompat="$(_DisableCetCompat)" />
+                       EnableMacOSCodeSign="$(_EnableMacOSCodeSign)" />
     </Target>
 
     <!-- apphost以外の実行用ファイルをlib配下へ集約する。 -->
