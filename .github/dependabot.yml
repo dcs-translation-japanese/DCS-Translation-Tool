@@ -60,15 +60,16 @@ updates:
       update-types:
         - "minor"
         - "patch"
+    xunit:
+      patterns:
+        - "xunit.*"
+        - "Xunit.StaFact"
     testing:
       patterns:
         - "coverlet.collector"
         - "Microsoft.NET.Test.Sdk"
         - "Moq"
         - "WireMock.Net"
-        - "xunit.runner.visualstudio"
-        - "Xunit.StaFact"
-        - "xunit.v3"
       update-types:
         - "minor"
         - "patch"

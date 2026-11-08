@@ -83,6 +83,14 @@ dotnet test -c Release --no-build --no-restore
 dotnet format --no-restore --verify-no-changes
 ```
 
+### テスト基盤
+
+テストは VSTest で実行する。xUnit は `xunit.v3.mtp-off` を使い、`xunit.runner.visualstudio` と `coverlet.collector` によるテスト実行・カバレッジ収集を維持する。`mtp-off` は [xUnit が公式に提供する MTP 無効化パッケージ](https://xunit.net/docs/getting-started/v3/microsoft-testing-platform#choosing-the-microsoft-testing-platform-version)である。
+
+`xunit.v3` 4 系は既定で MTP 2 を含む。[MTP 2 は .NET 10 以降の SDK で従来の VSTest 方式をサポートしない](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-with-dotnet-test)。SDK を古い版に制限して回避せず、使うテスト基盤をパッケージで明示する。MTP に移行する場合は、全テストプロジェクト、カバレッジ収集、E2E の実行オプションをまとめて変更する。
+
+xUnit 本体、`xunit.runner.visualstudio`、`Xunit.StaFact` は、全テストプロジェクトで互換性のある版に揃える。StaFact 4 系は xUnit 4 系を要求するため、Dependabot の `xunit` グループではメジャー更新もまとめて提案する。依存関係を変更したら、ソリューションと、ソリューションに含まれない `tests/DcsTranslationTool.EndToEndTests/DcsTranslationTool.EndToEndTests.csproj` の両方でロックファイルを更新する。
+
 アプリ起動:
 
 ```powershell
