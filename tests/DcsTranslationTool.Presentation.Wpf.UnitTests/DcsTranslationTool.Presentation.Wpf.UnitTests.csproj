@@ -13,7 +13,7 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.142" />
+        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.161" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
         <PackageReference Include="Moq" Version="4.21.0" />
         <PackageReference Include="Xunit.StaFact" Version="4.0.24" />

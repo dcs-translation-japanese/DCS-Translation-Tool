@@ -1133,8 +1133,8 @@
       },
       "Microsoft.Xaml.Behaviors.Wpf": {
         "type": "Transitive",
-        "resolved": "1.1.142",
-        "contentHash": "c47wA/8GHiQ9w+O6+mdqrZhZrxHogx2/fSZyRKL9tz0k+ypoTiwOx6fID0X3jr5LnCazJbCk7KiAcL0zVnNgNA=="
+        "resolved": "1.1.161",
+        "contentHash": "V20pH5zYDm6RPjqASdDiidUckWreGntPwDx1YUEMXiRqMVSHvypAiwSeET3ZwoJbFLMTsXXxqsoyhkNOB3Vp4Q=="
       },
       "MoonSharp": {
         "type": "Transitive",
@@ -1837,7 +1837,8 @@
         "dependencies": {
           "Caliburn.Micro": "[5.0.258, )",
           "DcsTranslationTool.Application": "[1.0.0, )",
-          "DcsTranslationTool.Infrastructure": "[1.0.0, )"
+          "DcsTranslationTool.Infrastructure": "[1.0.0, )",
+          "Microsoft.Xaml.Behaviors.Wpf": "[1.1.161, )"
         }
       },
       "dcstranslationtool.domain": {
@@ -1871,7 +1872,7 @@
           "DcsTranslationTool.Resources": "[1.0.0, )",
           "DcsTranslationTool.Shared": "[1.0.0, )",
           "MaterialDesignThemes": "[5.4.0, )",
-          "Microsoft.Xaml.Behaviors.Wpf": "[1.1.142, )",
+          "Microsoft.Xaml.Behaviors.Wpf": "[1.1.161, )",
           "MoonSharp": "[2.0.0, )"
         }
       },
