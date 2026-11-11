@@ -8,9 +8,7 @@ using System.Text.Json.Serialization;
 using DcsTranslationTool.Application.Contracts;
 using DcsTranslationTool.Application.Interfaces;
 using DcsTranslationTool.Application.Results;
-using DcsTranslationTool.Infrastructure.Http.ApiClient.CreatePr;
-using DcsTranslationTool.Infrastructure.Http.ApiClient.DownloadFilePaths;
-using DcsTranslationTool.Infrastructure.Http.ApiClient.DownloadFiles;
+using DcsTranslationTool.Infrastructure.Http.ApiClient.Models;
 using DcsTranslationTool.Infrastructure.Interfaces;
 using DcsTranslationTool.Shared.Models;
 
@@ -18,6 +16,7 @@ using FluentResults;
 
 using Microsoft.Kiota.Abstractions.Authentication;
 using Microsoft.Kiota.Http.HttpClientLibrary;
+using Microsoft.Kiota.Serialization.Json;
 
 using DcsApiClient = DcsTranslationTool.Infrastructure.Http.ApiClient.ApiClient;
 
@@ -29,7 +28,7 @@ public class ApiService(
     ILoggingService loggingService,
     ITreeHttpClientProvider treeHttpClientProvider
 ) : IApiService {
-    private const string DefaultBaseUrl = "https://dcs-translation-japanese-cloudflare-worker.dcs-translation-japanese.workers.dev/";
+    private const string DefaultBaseUrl = "https://api.dcs-translation-japanese.workers.dev/";
     private const int TreePrimaryTimeoutSeconds = 10;
     private const int TreeFallbackTimeoutSeconds = 15;
     private static readonly TimeSpan RoutePreferenceTtl = TimeSpan.FromDays( 1 );
@@ -53,7 +52,7 @@ public class ApiService(
         try {
             return await ExecuteWithRouteFallbackAsync(
                 async ( routeClient, token ) => {
-                    using var response = await routeClient.Client.GetAsync( "health", token ).ConfigureAwait( false );
+                    using var response = await routeClient.Client.GetAsync( "v2/health", token ).ConfigureAwait( false );
                     if(!response.IsSuccessStatusCode)
                         return Result.Fail( ResultErrorFactory.External( $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}", "API_HTTP_ERROR" ) );
 
@@ -161,7 +160,7 @@ public class ApiService(
         return CreateRouteClient( verifiedPreference );
     }
 
-    /// <summary>/health エンドポイントで IPv4/IPv6 の経路レースを実行して優先経路を検証する。</summary>
+    /// <summary>/v2/health エンドポイントで IPv4/IPv6 の経路レースを実行して優先経路を検証する。</summary>
     /// <param name="cancellationToken">キャンセルトークン。</param>
     /// <returns>採用する経路。</returns>
     private async Task<ApiRoutePreference> VerifyRouteByHealthRaceAsync( CancellationToken cancellationToken ) {
@@ -204,7 +203,7 @@ public class ApiService(
     private static async Task<HealthProbeAttempt> TryHealthAsync( HttpClient client, string label, CancellationToken cancellationToken ) {
         var stopwatch = Stopwatch.StartNew();
         try {
-            using var response = await client.GetAsync( "health", cancellationToken ).ConfigureAwait( false );
+            using var response = await client.GetAsync( "v2/health", cancellationToken ).ConfigureAwait( false );
             return new HealthProbeAttempt( label, response.IsSuccessStatusCode, (int)response.StatusCode, stopwatch.ElapsedMilliseconds );
         }
         catch(OperationCanceledException) {
@@ -403,98 +402,6 @@ public class ApiService(
         _logger.Info( $"{reason} 優先経路を更新した。Preference={preference}" );
     }
 
-    /// <summary>
-    /// APIを呼び出して複数ファイルをZIPでダウンロードする
-    /// </summary>
-    public async Task<Result<ApiDownloadFilesResult>> DownloadFilesAsync(
-        ApiDownloadFilesRequest request,
-        CancellationToken cancellationToken = default
-    ) {
-        ArgumentNullException.ThrowIfNull( request );
-
-        var sanitizeResult = ValidateAndSanitizePaths( request.Paths );
-        if(sanitizeResult.IsFailed)
-            return Result.Fail( sanitizeResult.Errors );
-
-        var sanitizedPaths = sanitizeResult.Value;
-
-        try {
-            return await ExecuteWithRouteFallbackAsync(
-                async ( routeClient, token ) => {
-                    var apiClientContext = InitializeApiClientContext( routeClient.Client );
-                    var requestInfo = apiClientContext.ApiClient.DownloadFiles.ToPostRequestInformation(
-                        new DownloadFilesPostRequestBody
-                        {
-                            Paths = [.. sanitizedPaths],
-                        },
-                        config => {
-                            if(!string.IsNullOrWhiteSpace( request.ETag ))
-                                config.Headers.TryAdd( "If-None-Match", request.ETag );
-                        }
-                    );
-
-                    using var message = await apiClientContext.RequestAdapter
-                        .ConvertToNativeRequestAsync<HttpRequestMessage>( requestInfo, token )
-                        .ConfigureAwait( false );
-                    if(message is null)
-                        return Result.Fail( ResultErrorFactory.External( "Request message was null.", "API_REQUEST_BUILD_ERROR" ) );
-
-                    message.Headers.Accept.Clear();
-                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/zip" ) );
-                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
-                    if(!string.IsNullOrWhiteSpace( request.ETag ))
-                        message.Headers.TryAddWithoutValidation( "If-None-Match", request.ETag );
-
-                    using var response = await routeClient.Client
-                        .SendAsync( message, HttpCompletionOption.ResponseHeadersRead, token )
-                        .ConfigureAwait( false );
-
-                    if(response.StatusCode == HttpStatusCode.NotModified) {
-                        var cached = new ApiDownloadFilesResult(
-                            sanitizedPaths,
-                            [],
-                            0,
-                            null,
-                            null,
-                            response.Headers.ETag?.Tag,
-                            true
-                        );
-
-                        return Result.Ok( cached );
-                    }
-
-                    var ensureResult = await EnsureSuccessStatusCodeAsync( response, token ).ConfigureAwait( false );
-                    if(ensureResult.IsFailed)
-                        return Result.Fail( ensureResult.Errors );
-
-                    var content = await response.Content.ReadAsByteArrayAsync( token ).ConfigureAwait( false );
-                    var size = response.Content.Headers.ContentLength ?? content.LongLength;
-                    var contentType = response.Content.Headers.ContentType?.MediaType;
-                    var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
-                        ?? response.Content.Headers.ContentDisposition?.FileName?.Trim( '"' );
-                    var etag = response.Headers.ETag?.Tag;
-
-                    var result = new ApiDownloadFilesResult(
-                        sanitizedPaths,
-                        content,
-                        size,
-                        contentType,
-                        fileName,
-                        etag,
-                        false
-                    );
-
-                    return Result.Ok( result );
-                },
-                "DownloadFilesAsync",
-                cancellationToken
-            ).ConfigureAwait( false );
-        }
-        catch(Exception ex) {
-            return Result.Fail( ResultErrorFactory.Unexpected( ex, "API_DOWNLOAD_FILES_EXCEPTION" ) );
-        }
-    }
-
     /// <summary>APIを呼び出して複数ファイルのダウンロードリンクを取得する</summary>
     public async Task<Result<ApiDownloadFilePathsResult>> DownloadFilePathsAsync(
         ApiDownloadFilePathsRequest request,
@@ -506,66 +413,36 @@ public class ApiService(
         if(sanitizeResult.IsFailed)
             return Result.Fail( sanitizeResult.Errors );
 
-        var sanitizedPaths = sanitizeResult.Value;
-
         try {
             return await ExecuteWithRouteFallbackAsync(
                 async ( routeClient, token ) => {
-                    var apiClientContext = InitializeApiClientContext( routeClient.Client );
-                    var requestInfo = apiClientContext.ApiClient.DownloadFilePaths.ToPostRequestInformation(
-                        new DownloadFilePathsPostRequestBody
-                        {
-                            Paths = [.. sanitizedPaths],
-                        },
-                        config => {
-                            config.Headers.TryAdd( "Accept", "application/problem+json" );
-                            if(!string.IsNullOrWhiteSpace( request.ETag ))
-                                config.Headers.TryAdd( "If-None-Match", request.ETag );
-                        }
-                    );
+                    var items = new List<ApiDownloadFilePathsItem>();
+                    foreach(var batch in sanitizeResult.Value.Distinct( StringComparer.Ordinal ).Chunk( 100 )) {
+                        // Kiota 1.29 は配列クエリをカンマ区切りにするため、v2 の繰り返し path を構築する。
+                        var query = string.Join( "&", batch.Select( path => $"path={Uri.EscapeDataString( path )}" ) );
+                        using var message = new HttpRequestMessage( HttpMethod.Get, $"v2/files?{query}" );
+                        message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/json" ) );
+                        message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
+                        using var response = await routeClient.Client
+                            .SendAsync( message, HttpCompletionOption.ResponseHeadersRead, token )
+                            .ConfigureAwait( false );
 
-                    using var message = await apiClientContext.RequestAdapter
-                        .ConvertToNativeRequestAsync<HttpRequestMessage>( requestInfo, token )
-                        .ConfigureAwait( false );
-                    if(message is null)
-                        return Result.Fail( ResultErrorFactory.External( "Request message was null.", "API_REQUEST_BUILD_ERROR" ) );
+                        var ensureResult = await EnsureSuccessStatusCodeAsync( response, token ).ConfigureAwait( false );
+                        if(ensureResult.IsFailed)
+                            return Result.Fail( ensureResult.Errors );
 
-                    message.Headers.Accept.Clear();
-                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/json" ) );
-                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
-                    if(!string.IsNullOrWhiteSpace( request.ETag ))
-                        message.Headers.TryAddWithoutValidation( "If-None-Match", request.ETag );
+                        using var stream = await response.Content.ReadAsStreamAsync( token ).ConfigureAwait( false );
+                        var node = await new JsonParseNodeFactory().GetRootParseNodeAsync( "application/json", stream, token ).ConfigureAwait( false );
+                        var payload = node.GetObjectValue( Files.CreateFromDiscriminatorValue );
+                        if(payload?.FilesProp is null)
+                            return Result.Fail( ResultErrorFactory.External( "Response files were missing.", "API_EMPTY_RESPONSE" ) );
 
-                    using var response = await routeClient.Client
-                        .SendAsync( message, HttpCompletionOption.ResponseHeadersRead, token )
-                        .ConfigureAwait( false );
-
-                    if(response.StatusCode == HttpStatusCode.NotModified) {
-                        var cached = new ApiDownloadFilePathsResult( [], response.Headers.ETag?.Tag );
-                        return Result.Ok( cached );
+                        items.AddRange( payload.FilesProp
+                            .Where( file => !string.IsNullOrWhiteSpace( file.Url ) && !string.IsNullOrWhiteSpace( file.Path ) )
+                            .Select( file => new ApiDownloadFilePathsItem( file.Url!, file.Path! ) ) );
                     }
 
-                    var ensureResult = await EnsureSuccessStatusCodeAsync( response, token ).ConfigureAwait( false );
-                    if(ensureResult.IsFailed)
-                        return Result.Fail( ensureResult.Errors );
-
-                    var payloadResponse = await response.Content
-                        .ReadFromJsonAsync<DownloadFilePathsPostResponse>( SerializerOptions, token )
-                        .ConfigureAwait( false );
-
-                    if(payloadResponse is null)
-                        return Result.Fail( ResultErrorFactory.External( "Response body was null.", "API_EMPTY_RESPONSE" ) );
-
-                    var items = payloadResponse.Files?
-                        .Where( file => file is not null && !string.IsNullOrWhiteSpace( file.Url ) && !string.IsNullOrWhiteSpace( file.Path ) )
-                        .Select( file => new ApiDownloadFilePathsItem( file.Url!, file.Path! ) )
-                        .ToArray()
-                        ?? [];
-
-                    var etag = response.Headers.ETag?.Tag ?? payloadResponse.Etag;
-                    var result = new ApiDownloadFilePathsResult( items, etag );
-
-                    return Result.Ok( result );
+                    return Result.Ok( new ApiDownloadFilePathsResult( items, null ) );
                 },
                 "DownloadFilePathsAsync",
                 cancellationToken
@@ -574,7 +451,6 @@ public class ApiService(
         catch(Exception ex) {
             return Result.Fail( ResultErrorFactory.Unexpected( ex, "API_DOWNLOAD_PATHS_EXCEPTION" ) );
         }
-
     }
 
     /// <summary>APIを呼び出してPull Requestを作成する</summary>
@@ -595,8 +471,8 @@ public class ApiService(
                 .Select( payload => payload! )
                 .ToList();
 
-            var requestInfo = apiClientContext.ApiClient.CreatePr.ToPostRequestInformation(
-                new CreatePrPostRequestBody
+            var requestInfo = apiClientContext.ApiClient.V2.Prs.ToPostRequestInformation(
+                new PullRequestCreate
                 {
                     BranchName = request.BranchName,
                     CommitMessage = request.CommitMessage,
@@ -626,20 +502,14 @@ public class ApiService(
             }
 
             var result = await response.Content
-                .ReadFromJsonAsync<CreatePrPostResponse>( SerializerOptions, cancellationToken )
+                .ReadFromJsonAsync<PullRequestCreation>( SerializerOptions, cancellationToken )
                 .ConfigureAwait( false );
 
             if(result is null)
                 return Result.Fail( ResultErrorFactory.External( "Response body was null.", "API_EMPTY_RESPONSE" ) );
 
-            var entries = result.Data?
-                .Select( ToCreatePrEntry )
-                .Where( entry => entry is not null )
-                .Select( entry => entry! )
-                .ToArray()
-                ?? [];
-
-            var outcome = new ApiCreatePullRequestOutcome( result.Success ?? false, result.Message, entries );
+            var entry = ToCreatePrEntry( result );
+            var outcome = new ApiCreatePullRequestOutcome( true, null, [entry] );
             return Result.Ok( outcome );
         }
         catch(Exception ex) {
@@ -717,13 +587,6 @@ public class ApiService(
         };
     }
 
-    /// <summary>ツリーエントリがディレクトリかを判定する。</summary>
-    /// <param name="item">ツリーエントリ。</param>
-    /// <returns>ディレクトリなら true。</returns>
-    private static bool IsDirectory( TreeEntryPayload item ) =>
-        item.Mode?.Equals( "040000", StringComparison.OrdinalIgnoreCase ) == true
-        || item.Type?.Equals( "tree", StringComparison.OrdinalIgnoreCase ) == true;
-
     /// <summary>
     /// Tree API を呼び出し、処理結果と内訳を返す。
     /// </summary>
@@ -750,57 +613,44 @@ public class ApiService(
         timeoutCts.CancelAfter( timeout );
 
         try {
-            var httpStopwatch = Stopwatch.StartNew();
-            using var response = await client.GetAsync( "tree", timeoutCts.Token ).ConfigureAwait( false );
-            httpElapsedMs = httpStopwatch.ElapsedMilliseconds;
-            statusCode = (int)response.StatusCode;
+            var entries = new List<FileEntry>();
+            var cursors = new HashSet<string>( StringComparer.Ordinal );
+            string? cursor = null;
+            do {
+                var httpStopwatch = Stopwatch.StartNew();
+                var url = cursor is null ? "v2/tree" : $"v2/tree?cursor={Uri.EscapeDataString( cursor )}";
+                using var response = await client.GetAsync( url, timeoutCts.Token ).ConfigureAwait( false );
+                httpElapsedMs += httpStopwatch.ElapsedMilliseconds;
+                statusCode = (int)response.StatusCode;
+                if(!response.IsSuccessStatusCode) {
+                    var error = ResultErrorFactory.External( $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}", "API_HTTP_ERROR" );
+                    return new TreeRequestAttempt(
+                        pathLabel, Result.Fail<IReadOnlyList<FileEntry>>( error ),
+                        httpElapsedMs, deserializeElapsedMs, mapElapsedMs, totalStopwatch.ElapsedMilliseconds,
+                        rawCount, mappedCount, statusCode, false
+                    );
+                }
 
-            if(!response.IsSuccessStatusCode) {
-                var error = ResultErrorFactory.External( $"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}", "API_HTTP_ERROR" );
-                return new TreeRequestAttempt(
-                    pathLabel,
-                    Result.Fail<IReadOnlyList<FileEntry>>( error ),
-                    httpElapsedMs,
-                    deserializeElapsedMs,
-                    mapElapsedMs,
-                    totalStopwatch.ElapsedMilliseconds,
-                    rawCount,
-                    mappedCount,
-                    statusCode,
-                    false
-                );
-            }
+                var deserializeStopwatch = Stopwatch.StartNew();
+                using var stream = await response.Content.ReadAsStreamAsync( timeoutCts.Token ).ConfigureAwait( false );
+                var node = await new JsonParseNodeFactory().GetRootParseNodeAsync( "application/json", stream, timeoutCts.Token ).ConfigureAwait( false );
+                var payload = node.GetObjectValue( TreeSnapshot.CreateFromDiscriminatorValue );
+                deserializeElapsedMs += deserializeStopwatch.ElapsedMilliseconds;
+                if(payload?.Items is null || payload.Page is null)
+                    throw new JsonException( "Tree response items or page were missing." );
 
-            var deserializeStopwatch = Stopwatch.StartNew();
-            var payload = await response.Content.ReadFromJsonAsync<TreeResponse>( SerializerOptions, timeoutCts.Token ).ConfigureAwait( false );
-            deserializeElapsedMs = deserializeStopwatch.ElapsedMilliseconds;
+                rawCount += payload.Items.Count;
+                var mapStopwatch = Stopwatch.StartNew();
+                foreach(var item in payload.Items) {
+                    if(string.IsNullOrWhiteSpace( item.Path )) continue;
+                    entries.Add( new FileEntry( ExtractName( item.Path ), item.Path, false, repoSha: item.Sha ) );
+                }
+                mapElapsedMs += mapStopwatch.ElapsedMilliseconds;
+                cursor = payload.Page.NextCursor;
+                if(cursor is not null && !cursors.Add( cursor ))
+                    throw new JsonException( "Tree response cursor was repeated." );
+            } while(cursor is not null);
 
-            if(payload?.Data is not { Count: > 0 } data) {
-                return new TreeRequestAttempt(
-                    pathLabel,
-                    Result.Ok<IReadOnlyList<FileEntry>>( [] ),
-                    httpElapsedMs,
-                    deserializeElapsedMs,
-                    mapElapsedMs,
-                    totalStopwatch.ElapsedMilliseconds,
-                    rawCount,
-                    mappedCount,
-                    statusCode,
-                    false
-                );
-            }
-
-            rawCount = data.Count;
-            var mapStopwatch = Stopwatch.StartNew();
-            var entries = new List<FileEntry>( data.Count );
-            foreach(var item in data) {
-                if(item is null || string.IsNullOrWhiteSpace( item.Path )) continue;
-                var name = ExtractName( item.Path );
-                var isDirectory = IsDirectory( item );
-                entries.Add( new FileEntry( name, item.Path, isDirectory, repoSha: item.Sha ) );
-            }
-
-            mapElapsedMs = mapStopwatch.ElapsedMilliseconds;
             mappedCount = entries.Count;
             return new TreeRequestAttempt(
                 pathLabel,
@@ -876,25 +726,25 @@ public class ApiService(
     /// <summary>API用のファイル変更ペイロードに変換する。</summary>
     /// <param name="file">PRに含めるファイル情報。</param>
     /// <returns>変換結果。対応外の操作は null。</returns>
-    private static CreatePrPostRequestBody.CreatePrPostRequestBody_files? ToFilePayload( ApiPullRequestFile file ) {
+    private static PullRequestCreate.PullRequestCreate_files? ToFilePayload( ApiPullRequestFile file ) {
         ArgumentNullException.ThrowIfNull( file );
 
         return file.Operation switch
         {
-            ApiPullRequestFileOperation.Upsert => new CreatePrPostRequestBody.CreatePrPostRequestBody_files
+            ApiPullRequestFileOperation.Upsert => new PullRequestCreate.PullRequestCreate_files
             {
-                CreatePrPostRequestBodyFilesMember1 = new CreatePrPostRequestBody_filesMember1
+                FileUpsert = new FileUpsert
                 {
-                    Operation = CreatePrPostRequestBody_filesMember1_operation.Upsert,
+                    Operation = FileUpsert_operation.Upsert,
                     Path = file.Path,
                     Content = file.Content,
                 },
             },
-            ApiPullRequestFileOperation.Delete => new CreatePrPostRequestBody.CreatePrPostRequestBody_files
+            ApiPullRequestFileOperation.Delete => new PullRequestCreate.PullRequestCreate_files
             {
-                CreatePrPostRequestBodyFilesMember2 = new CreatePrPostRequestBody_filesMember2
+                FileDelete = new FileDelete
                 {
-                    Operation = CreatePrPostRequestBody_filesMember2_operation.Delete,
+                    Operation = FileDelete_operation.Delete,
                     Path = file.Path,
                 },
             },
@@ -902,16 +752,11 @@ public class ApiService(
         };
     }
 
-    /// <summary>PR作成レスポンスのエントリをアプリ内モデルに変換する。</summary>
-    /// <param name="payload">レスポンスの生データ。</param>
-    /// <returns>アプリ内エントリ。<paramref name="payload"/> が null の場合は null。</returns>
-    private static ApiCreatePullRequestEntry? ToCreatePrEntry( CreatePrPostResponse_data? payload ) {
-        if(payload is null) return null;
-
+    /// <summary>PR作成レスポンスをアプリ内モデルに変換する。</summary>
+    private static ApiCreatePullRequestEntry ToCreatePrEntry( PullRequestCreation payload ) {
         Uri? prUrl = null;
-        if(payload.PrUrl is { Length: > 0 } url && Uri.TryCreate( url, UriKind.Absolute, out var parsed )) prUrl = parsed;
-
-        return new ApiCreatePullRequestEntry( payload.BranchName, payload.CommitSha, payload.PrNumber, prUrl, payload.Note );
+        if(payload.Url is { Length: > 0 } url && Uri.TryCreate( url, UriKind.Absolute, out var parsed )) prUrl = parsed;
+        return new ApiCreatePullRequestEntry( payload.BranchName, payload.CommitSha, payload.Number, prUrl, null, payload.Reused ?? false );
     }
 
     /// <summary>ヘルスチェック応答のペイロード。</summary>
@@ -920,30 +765,6 @@ public class ApiService(
     private sealed record HealthResponse(
         [property: JsonPropertyName( "status" )] string? Status,
         [property: JsonPropertyName( "timestamp" )] DateTimeOffset? Timestamp
-    );
-
-    /// <summary>ツリー取得APIの応答ペイロード。</summary>
-    /// <param name="Success">処理成否。</param>
-    /// <param name="Message">メッセージ。</param>
-    /// <param name="Data">ツリーエントリ一覧。</param>
-    private sealed record TreeResponse(
-        [property: JsonPropertyName( "success" )] bool? Success,
-        [property: JsonPropertyName( "message" )] string? Message,
-        [property: JsonPropertyName( "data" )] List<TreeEntryPayload>? Data
-    );
-
-    /// <summary>ツリーの1要素を表すペイロード。</summary>
-    /// <param name="Mode">ファイルモード。ディレクトリは "040000"。</param>
-    /// <param name="Path">リポジトリ内パス。</param>
-    /// <param name="Sha">GitオブジェクトSHA。</param>
-    /// <param name="Size">サイズ（ファイルのみ）。</param>
-    /// <param name="Type">種別。"blob" または "tree"。</param>
-    private sealed record TreeEntryPayload(
-        [property: JsonPropertyName( "mode" )] string? Mode,
-        [property: JsonPropertyName( "path" )] string? Path,
-        [property: JsonPropertyName( "sha" )] string? Sha,
-        [property: JsonPropertyName( "size" )] int? Size,
-        [property: JsonPropertyName( "type" )] string? Type
     );
 
     /// <summary>APIクライアント依存をまとめる。</summary>
@@ -978,7 +799,7 @@ public class ApiService(
         bool TimedOut
     );
 
-    /// <summary>/health の疎通試行結果を保持する。</summary>
+    /// <summary>/v2/health の疎通試行結果を保持する。</summary>
     /// <param name="Label">経路ラベル。</param>
     /// <param name="IsSuccess">成功したかどうか。</param>
     /// <param name="StatusCode">HTTPステータスコード。</param>
