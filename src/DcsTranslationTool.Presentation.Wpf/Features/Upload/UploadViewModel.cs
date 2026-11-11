@@ -12,7 +12,7 @@ using DcsTranslationTool.Presentation.Wpf.UI.Enums;
 namespace DcsTranslationTool.Presentation.Wpf.Features.Upload;
 
 /// <summary>
-/// アップロードページの状態を管理する ViewModel
+/// アップロードページの状態、PR対象の検証、作成ダイアログの表示を管理する。
 /// </summary>
 public sealed class UploadViewModel(
     IApiService apiService,
@@ -56,15 +56,29 @@ public sealed class UploadViewModel(
     }
 
     /// <summary>
-    /// CreatePullRequestDialog を表示する。
+    /// 選択ファイルの所属先を検証し、削除を含む場合は確認してからPR作成ダイアログを表示する。
     /// </summary>
     public async Task ShowCreatePullRequestDialog() {
         Logger.Info( "Pull Request ダイアログ表示を開始する。" );
+        var commitFiles = GetCommitFiles.ToList();
+        string subCategory;
+        try {
+            subCategory = GetSubCategory( commitFiles );
+        }
+        catch(InvalidOperationException ex) {
+            Logger.Warn( ex.Message );
+            await DispatcherService.InvokeAsync( () => {
+                SnackbarService.Show( ex.Message );
+                return Task.CompletedTask;
+            } );
+            return;
+        }
+
         var dialogParameters = new CreatePullRequestDialogParameters()
         {
             Category = Tabs[SelectedTabIndex].Title,
-            SubCategory = GetSubCategory(),
-            CommitFiles = GetCommitFiles,
+            SubCategory = subCategory,
+            CommitFiles = commitFiles,
         };
         Logger.Info( $"ダイアログ引数を構築した。Category={dialogParameters.Category}, SubCategory={dialogParameters.SubCategory}, FileCount={dialogParameters.CommitFiles.Count()}" );
 
@@ -75,7 +89,9 @@ public sealed class UploadViewModel(
                 new ConfirmationDialogParameters
                 {
                     Title = "削除確認",
-                    Message = "削除予定のファイルが含まれます。続行しますか？",
+                    Message = commitFiles.All( cf => cf.Operation == CommitOperationType.Delete )
+                        ? $"対象: {dialogParameters.Category} / {subCategory}\n削除予定: {commitFiles.Count} ファイル\n削除だけのPRを作成します。続行しますか？"
+                        : "削除予定のファイルが含まれます。続行しますか？",
                     ConfirmButtonText = "続行",
                     CancelButtonText = "中止",
                 } );
@@ -87,6 +103,7 @@ public sealed class UploadViewModel(
         }
 
 
+        // PR作成の処理結果と任意のアクションをUIスレッドで通知する。
         async Task ShowAsync( string message, string? action = null, System.Action? handler = null ) =>
             await DispatcherService.InvokeAsync( () => {
                 SnackbarService.Show( message, action, handler );
@@ -133,18 +150,53 @@ public sealed class UploadViewModel(
 
     #region Private Helpers
 
-    private string GetSubCategory() {
-        var cur = Tabs[SelectedTabIndex].Root;
-        List<FileChangeType?> typeFilter = [FileChangeType.LocalOnly, FileChangeType.Modified];
+    /// <summary>
+    /// 送信対象の全ファイルが単一の機体、キャンペーン、またはミッションに属することを検証し、その名前を取得する。
+    /// </summary>
+    /// <param name="commitFiles">PRに含める変更ファイル。</param>
+    /// <returns>全ファイルの所属先となるサブカテゴリー名。</returns>
+    /// <exception cref="InvalidOperationException">
+    /// 変更ファイルがない場合、所属先を特定できない場合、または複数の所属先にまたがる場合。
+    /// </exception>
+    private string GetSubCategory( IReadOnlyList<CommitFile> commitFiles ) {
+        if(commitFiles.Count == 0) {
+            throw new InvalidOperationException( "PRの対象となる変更ファイルがありません。" );
+        }
 
-        if(cur.Children.Count( c => typeFilter.Contains( c.ChangeType ) && c.CheckState != false ) != 1) throw new Exception();
-        cur = cur.Children.First( c => typeFilter.Contains( c.ChangeType ) && c.CheckState != false );
+        // ディレクトリの集約された変更種別ではなく、実際に送信する全ファイルの所属先を検証する。
+        var tab = Tabs[SelectedTabIndex];
+        var targets = tab.Root.Children
+            .Where( child => child.IsDirectory && commitFiles.Any( file =>
+                file.RepoPath.StartsWith( child.Path + "/", StringComparison.Ordinal ) ) )
+            .ToList();
+        if(commitFiles.Any( file => !targets.Any( child =>
+            file.RepoPath.StartsWith( child.Path + "/", StringComparison.Ordinal ) ) )) {
+            throw new InvalidOperationException( "対象の所属先を確認できません。選択し直してください。" );
+        }
 
-        var name = cur.Name;
+        if(targets.Count != 1) {
+            var missionCount = targets.Count( child =>
+                child.Name.EndsWith( ".miz", StringComparison.OrdinalIgnoreCase ) ||
+                child.Name.EndsWith( ".trk", StringComparison.OrdinalIgnoreCase ) );
+            var message = tab.TabType switch
+            {
+                CategoryType.Aircraft => "機体は1つだけ選択してください。",
+                CategoryType.DlcCampaigns => "DLCキャンペーンは1つだけ選択してください。",
+                CategoryType.UserMissions when missionCount == targets.Count => "ユーザーミッションは1つだけ選択してください。",
+                CategoryType.UserMissions when missionCount == 0 => "ユーザーキャンペーンは1つだけ選択してください。",
+                _ => "ミッションとキャンペーンは別々に選択してください。"
+            };
+            throw new InvalidOperationException( message );
+        }
+
+        var name = targets[0].Name;
         Logger.Info( $"サブカテゴリーを算出した。Name={name}" );
         return name;
     }
 
+    /// <summary>
+    /// 選択中のタブでチェックされた差分ファイルを収集し、追加・更新または削除のコミット操作に変換する。
+    /// </summary>
     private IEnumerable<CommitFile> GetCommitFiles {
         get {
             if(SelectedTabIndex < 0 || SelectedTabIndex >= Tabs.Count) {
