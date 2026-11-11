@@ -660,7 +660,7 @@ public sealed class UploadViewModelTests : IDisposable {
         };
         await context.RaiseEntriesChangedAsync( localEntries );
 
-        Assert.Throws<Exception>( () => InvokeGetSubCategory( viewModel ) );
+        Assert.Throws<InvalidOperationException>( () => InvokeGetSubCategory( viewModel ) );
     }
 
     /// <summary>GetSubCategoryを呼び出すと対象ノードが複数件のとき例外を送出することを確認する。</summary>
@@ -688,7 +688,7 @@ public sealed class UploadViewModelTests : IDisposable {
         moduleNode!.CheckState = true;
         secondNode!.CheckState = true;
 
-        Assert.Throws<Exception>( () => InvokeGetSubCategory( viewModel ) );
+        Assert.Throws<InvalidOperationException>( () => InvokeGetSubCategory( viewModel ) );
     }
 
     #endregion
@@ -862,6 +862,115 @@ public sealed class UploadViewModelTests : IDisposable {
     #endregion
 
     #region ダイアログ起動（ShowCreatePullRequestDialog）
+
+    /// <summary>単一対象の削除だけのPRは確認に承認した場合だけダイアログを開く。</summary>
+    [StaTheory]
+    [InlineData( CategoryType.Aircraft, "DCSWorld/Mods/aircraft/A10C/L10N/Example.lua", "A10C", true )]
+    [InlineData( CategoryType.DlcCampaigns, "DCSWorld/Mods/campaigns/Campaign1/Mission1.miz/l10n/JP/dictionary", "Campaign1", true )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Mission1.miz/l10n/JP/dictionary", "Mission1.miz", true )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Campaign1/Mission1.miz/l10n/JP/dictionary", "Campaign1", true )]
+    [InlineData( CategoryType.Aircraft, "DCSWorld/Mods/aircraft/A10C/L10N/Example.lua", "A10C", false )]
+    public async Task 削除だけのPRは単一対象を確認してから進む( CategoryType category, string path, string subCategory, bool confirmed ) {
+        var context = new UploadViewModelTestContext( _tempDir );
+        var viewModel = await CreateDeletionUploadViewModelAsync( context, category, [path] );
+        var order = new List<string>();
+        context.DialogServiceMock
+            .Setup( service => service.ContinueCancelDialogShowAsync( It.IsAny<ConfirmationDialogParameters>() ) )
+            .Callback<ConfirmationDialogParameters>( parameters => {
+                Assert.Contains( "削除だけ", parameters.Message );
+                Assert.Contains( subCategory, parameters.Message );
+                order.Add( "confirm" );
+            } )
+            .ReturnsAsync( confirmed );
+        context.DialogServiceMock
+            .Setup( service => service.CreatePullRequestDialogShowAsync(
+                It.IsAny<CreatePullRequestDialogParameters>(), It.IsAny<CancellationToken>() ) )
+            .Callback<CreatePullRequestDialogParameters, CancellationToken>( ( parameters, _ ) => {
+                Assert.Equal( subCategory, parameters.SubCategory );
+                Assert.All( parameters.CommitFiles, file => Assert.Equal( CommitOperationType.Delete, file.Operation ) );
+                order.Add( "create" );
+            } )
+            .ReturnsAsync( new CreatePullRequestResult() );
+
+        await viewModel.ShowCreatePullRequestDialog();
+
+        Assert.Equal( confirmed ? ["confirm", "create"] : new[] { "confirm" }, order );
+    }
+
+    /// <summary>複数の対象にまたがる削除は確認もPRダイアログも開かず理由を通知する。</summary>
+    [StaTheory]
+    [InlineData( CategoryType.Aircraft, "DCSWorld/Mods/aircraft/A10C/L10N/a.lua", "DCSWorld/Mods/aircraft/F16C/L10N/b.lua", "機体は1つだけ選択してください。" )]
+    [InlineData( CategoryType.DlcCampaigns, "DCSWorld/Mods/campaigns/Campaign1/Mission1.miz/l10n/JP/dictionary", "DCSWorld/Mods/campaigns/Campaign2/Mission1.miz/l10n/JP/dictionary", "DLCキャンペーンは1つだけ選択してください。" )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Mission1.miz/l10n/JP/dictionary", "UserMissions/Mission2.miz/l10n/JP/dictionary", "ユーザーミッションは1つだけ選択してください。" )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Mission1.MIZ/l10n/JP/dictionary", "UserMissions/Mission2.TRK/l10n/JP/dictionary", "ユーザーミッションは1つだけ選択してください。" )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Campaign1/Mission1.miz/l10n/JP/dictionary", "UserMissions/Campaign2/Mission1.miz/l10n/JP/dictionary", "ユーザーキャンペーンは1つだけ選択してください。" )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/Campaign1/Mission1.miz/l10n/JP/dictionary", "UserMissions/Mission1.miz/l10n/JP/dictionary", "ミッションとキャンペーンは別々に選択してください。" )]
+    [InlineData( CategoryType.UserMissions, "UserMissions/dictionary", "UserMissions/Mission1.miz/l10n/JP/dictionary", "対象の所属先を確認できません。選択し直してください。" )]
+    public async Task 複数対象の削除だけのPRは禁止理由を表示して中断する( CategoryType category, string firstPath, string secondPath, string expectedMessage ) {
+        var context = new UploadViewModelTestContext( _tempDir );
+        var viewModel = await CreateDeletionUploadViewModelAsync( context, category, [firstPath, secondPath] );
+        var initialCount = context.SnackbarMessages.Count;
+
+        await viewModel.ShowCreatePullRequestDialog();
+
+        Assert.Equal( initialCount + 1, context.SnackbarMessages.Count );
+        Assert.Equal( expectedMessage, context.SnackbarMessages[^1] );
+        context.DialogServiceMock.Verify( service => service.ContinueCancelDialogShowAsync(
+            It.IsAny<ConfirmationDialogParameters>() ), Times.Never );
+        context.DialogServiceMock.Verify( service => service.CreatePullRequestDialogShowAsync(
+            It.IsAny<CreatePullRequestDialogParameters>(), It.IsAny<CancellationToken>() ), Times.Never );
+    }
+
+    /// <summary>同じキャンペーン内の複数ミッションの削除は単一対象として扱う。</summary>
+    [StaFact]
+    public async Task 同じユーザーキャンペーンの複数ミッションを削除できる() {
+        var context = new UploadViewModelTestContext( _tempDir );
+        var paths = new[] {
+            "UserMissions/Campaign1/Mission1.miz/l10n/JP/dictionary",
+            "UserMissions/Campaign1/Mission2.miz/l10n/JP/dictionary"
+        };
+        var viewModel = await CreateDeletionUploadViewModelAsync( context, CategoryType.UserMissions, paths );
+
+        await viewModel.ShowCreatePullRequestDialog();
+
+        context.DialogServiceMock.Verify( service => service.CreatePullRequestDialogShowAsync(
+            It.Is<CreatePullRequestDialogParameters>( parameters => parameters.SubCategory == "Campaign1" && parameters.CommitFiles.Count() == 2 ),
+            It.IsAny<CancellationToken>() ), Times.Once );
+    }
+
+    /// <summary>所属先の検証と送信は選択された実ファイルだけを対象にする。</summary>
+    [StaFact]
+    public async Task 別の機体に未選択の削除があっても選択した機体だけを送信する() {
+        var context = new UploadViewModelTestContext( _tempDir );
+        var viewModel = await CreateDeletionUploadViewModelAsync(
+            context, CategoryType.Aircraft, [AircraftExamplePath, AircraftSecondModulePath] );
+        var root = viewModel.Tabs[viewModel.SelectedTabIndex].Root;
+        root.CheckState = false;
+        FindNodeByPath( root, AircraftExamplePath )!.CheckState = true;
+
+        await viewModel.ShowCreatePullRequestDialog();
+
+        context.DialogServiceMock.Verify( service => service.CreatePullRequestDialogShowAsync(
+            It.Is<CreatePullRequestDialogParameters>( parameters => parameters.SubCategory == "A10C" &&
+                parameters.CommitFiles.Single().RepoPath == AircraftExamplePath ),
+            It.IsAny<CancellationToken>() ), Times.Once );
+    }
+
+    /// <summary>送信対象がない場合は理由を表示し確認もPR作成も行わない。</summary>
+    [StaFact]
+    public async Task 選択が空のときは理由を表示して中断する() {
+        var context = new UploadViewModelTestContext( _tempDir );
+        var viewModel = await CreateDeletionUploadViewModelAsync( context, CategoryType.Aircraft, [AircraftExamplePath] );
+        viewModel.Tabs[viewModel.SelectedTabIndex].Root.CheckState = false;
+
+        await viewModel.ShowCreatePullRequestDialog();
+
+        Assert.Contains( "変更ファイルがありません", context.SnackbarMessages[^1] );
+        context.DialogServiceMock.Verify( service => service.ContinueCancelDialogShowAsync(
+            It.IsAny<ConfirmationDialogParameters>() ), Times.Never );
+        context.DialogServiceMock.Verify( service => service.CreatePullRequestDialogShowAsync(
+            It.IsAny<CreatePullRequestDialogParameters>(), It.IsAny<CancellationToken>() ), Times.Never );
+    }
 
     /// <summary>ShowCreatePullRequestDialogを呼び出すと削除ファイルを含む場合確認ダイアログを表示しキャンセルで中断することを確認する。</summary>
     [StaFact]
@@ -1256,6 +1365,25 @@ public sealed class UploadViewModelTests : IDisposable {
         return viewModel;
     }
 
+    /// <summary>リポジトリにのみ存在するファイルを選択したUploadを構築する。</summary>
+    private static async Task<UploadViewModel> CreateDeletionUploadViewModelAsync(
+        UploadViewModelTestContext context, CategoryType category, IReadOnlyList<string> paths
+    ) {
+        context.ApiServiceMock
+            .Setup( api => api.GetTreeAsync( It.IsAny<CancellationToken>() ) )
+            .ReturnsAsync( Result.Ok<IReadOnlyList<FileEntry>>( paths
+                .Select( path => (FileEntry)new RepoFileEntry( Path.GetFileName( path ), path, false, "repo-sha" ) ).ToArray() ) );
+        var viewModel = context.CreateViewModel();
+        await viewModel.ActivateAsync( CancellationToken.None );
+        await WaitUntilAsync(
+            () => context.FileEntryServiceMock.Invocations.Any( invocation => invocation.Method.Name == nameof( IFileEntryService.GetEntriesAsync ) ),
+            "バックグラウンドのローカル再取得が開始されない。" );
+        await context.RaiseEntriesChangedAsync( [] );
+        viewModel.SelectedTabIndex = GetTabIndexByType( viewModel, category );
+        viewModel.Tabs[viewModel.SelectedTabIndex].Root.CheckState = true;
+        return viewModel;
+    }
+
     /// <summary>指定条件が満たされるまで待機する。</summary>
     private static async Task WaitUntilAsync( Func<bool> predicate, string timeoutMessage, int timeoutMs = 3000 ) {
         var startedAt = DateTime.UtcNow;
@@ -1358,7 +1486,7 @@ public sealed class UploadViewModelTests : IDisposable {
         var method = typeof( UploadViewModel ).GetMethod( "GetSubCategory", BindingFlags.Instance | BindingFlags.NonPublic )
             ?? throw new InvalidOperationException( "GetSubCategory が見つからない。" );
         try {
-            return (string)(method.Invoke( viewModel, null ) ?? throw new InvalidOperationException( "GetSubCategory が null を返した。" ));
+            return (string)(method.Invoke( viewModel, [InvokeGetCommitFiles( viewModel )] ) ?? throw new InvalidOperationException( "GetSubCategory が null を返した。" ));
         }
         catch(TargetInvocationException ex) when(ex.InnerException is not null) {
             ExceptionDispatchInfo.Capture( ex.InnerException ).Throw();
