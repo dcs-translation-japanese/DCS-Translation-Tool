@@ -25,7 +25,7 @@ public class ApiServiceTests {
         var timestamp = DateTimeOffset.UtcNow;
         var client = CreateClient((request, _) => {
             Assert.Equal( HttpMethod.Get, request.Method );
-            Assert.Equal( "/health", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/health", request.RequestUri?.AbsolutePath );
 
             var payload = JsonSerializer.Serialize( new
             {
@@ -72,20 +72,13 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task GetTreeAsyncはディレクトリとファイルを正しくマッピングする() {
+    public async Task GetTreeAsyncはファイル一覧を正しくマッピングする() {
         // Arrange
         const string responsePayload =
             """
             {
-              "success": true,
-              "message": "ok",
-              "data": [
-                {
-                  "mode": "040000",
-                  "path": "translations",
-                  "sha": "dir-sha",
-                  "type": "tree"
-                },
+              "page": { "nextCursor": null },
+              "items": [
                 {
                   "mode": "100644",
                   "path": "translations/file.po",
@@ -104,7 +97,7 @@ public class ApiServiceTests {
 
         var client = CreateClient((request, _) => {
             Assert.Equal( HttpMethod.Get, request.Method );
-            Assert.Equal( "/tree", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/tree", request.RequestUri?.AbsolutePath );
 
             var response = new HttpResponseMessage( HttpStatusCode.OK )
             {
@@ -121,15 +114,9 @@ public class ApiServiceTests {
         // Assert
         Assert.True( result.IsSuccess );
         var entries = result.Value;
-        Assert.Equal( 2, entries.Count );
+        Assert.Single( entries );
 
-        var directory = entries[0];
-        Assert.Equal( "translations", directory.Name );
-        Assert.Equal( "translations", directory.Path );
-        Assert.True( directory.IsDirectory );
-        Assert.Equal( "dir-sha", directory.RepoSha );
-
-        var file = entries[1];
+        var file = entries[0];
         Assert.Equal( "file.po", file.Name );
         Assert.Equal( "translations/file.po", file.Path );
         Assert.False( file.IsDirectory );
@@ -154,7 +141,7 @@ public class ApiServiceTests {
 
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            if(request.RequestUri?.AbsolutePath == "/tree") {
+            if(request.RequestUri?.AbsolutePath == "/v2/tree") {
                 return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
                 {
                     Content = new StringContent( CreateTreePayload( "ipv4", "ipv4-sha" ), Encoding.UTF8, "application/json" ),
@@ -194,7 +181,7 @@ public class ApiServiceTests {
         var requestCount = 0;
         var sharedClient = CreateClient((request, _) => {
             Interlocked.Increment( ref requestCount );
-            if(request.RequestUri?.AbsolutePath == "/health") {
+            if(request.RequestUri?.AbsolutePath == "/v2/health") {
                 return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
                 {
                     Content = new StringContent( CreateHealthPayload(), Encoding.UTF8, "application/json" ),
@@ -232,7 +219,7 @@ public class ApiServiceTests {
 
         var defaultClient = CreateClient((request, _) => {
             Interlocked.Increment( ref defaultRequestCount );
-            Assert.Equal( "/tree", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/tree", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError )
             {
                 ReasonPhrase = "default-failed",
@@ -240,7 +227,7 @@ public class ApiServiceTests {
         });
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            Assert.Equal( "/tree", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/tree", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = new StringContent( CreateTreePayload( "ipv4", "ipv4-sha" ), Encoding.UTF8, "application/json" ),
@@ -248,7 +235,7 @@ public class ApiServiceTests {
         });
         var ipv6Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv6RequestCount );
-            Assert.Equal( "/tree", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/tree", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = new StringContent( CreateTreePayload( "ipv6", "ipv6-sha" ), Encoding.UTF8, "application/json" ),
@@ -276,22 +263,15 @@ public class ApiServiceTests {
     [Fact]
     public async Task DownloadFilePathsAsyncはhealth検証が失敗してもdefault経路で継続する() {
         // Arrange
-        var defaultClient = CreateClient(async (request, token) => {
-            if(request.RequestUri?.AbsolutePath == "/health") {
-                return new HttpResponseMessage( HttpStatusCode.OK )
+        var defaultClient = CreateClient((request, _) => {
+            if(request.RequestUri?.AbsolutePath == "/v2/health") {
+                return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
                 {
                     Content = new StringContent( CreateHealthPayload(), Encoding.UTF8, "application/json" ),
-                };
+                } );
             }
 
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait( false );
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-            Assert.Equal( expected, pathValues );
+            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
 
             const string responsePayload =
                 """
@@ -304,10 +284,10 @@ public class ApiServiceTests {
                 }
                 """;
 
-            return new HttpResponseMessage( HttpStatusCode.OK )
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = new StringContent( responsePayload, Encoding.UTF8, "application/json" ),
-            };
+            } );
         });
         var ipv4Client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError ) ));
         var ipv6Client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError ) ));
@@ -333,18 +313,11 @@ public class ApiServiceTests {
             ApiPreferredRouteValidUntilUtc = DateTimeOffset.UtcNow.AddMinutes( 30 ),
         };
 
-        var defaultClient = CreateClient(async (request, token) => {
+        var defaultClient = CreateClient((request, _) => {
             Interlocked.Increment( ref defaultRequestCount );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait( false );
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-            Assert.Equal( expected, pathValues );
+            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
 
             const string responsePayload =
                 """
@@ -355,14 +328,14 @@ public class ApiServiceTests {
                   "etag": "\"body-etag\""
                 }
                 """;
-            return new HttpResponseMessage( HttpStatusCode.OK )
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = new StringContent( responsePayload, Encoding.UTF8, "application/json" ),
-            };
+            } );
         });
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.BadGateway )
             {
                 ReasonPhrase = "ipv4-failed",
@@ -393,18 +366,11 @@ public class ApiServiceTests {
             ApiPreferredRouteValidUntilUtc = DateTimeOffset.UtcNow.AddMinutes( 30 ),
         };
 
-        var defaultClient = CreateClient(async (request, token) => {
+        var defaultClient = CreateClient((request, _) => {
             Interlocked.Increment( ref defaultRequestCount );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait( false );
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-            Assert.Equal( expected, pathValues );
+            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
 
             const string responsePayload =
                 """
@@ -415,14 +381,14 @@ public class ApiServiceTests {
                   "etag": "\"body-etag\""
                 }
                 """;
-            return new HttpResponseMessage( HttpStatusCode.OK )
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = new StringContent( responsePayload, Encoding.UTF8, "application/json" ),
-            };
+            } );
         });
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
             throw new HttpRequestException( "ipv4-transport-error" );
         });
         var ipv6Client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError ) ));
@@ -452,12 +418,12 @@ public class ApiServiceTests {
 
         var defaultClient = CreateClient((request, _) => {
             Interlocked.Increment( ref defaultRequestCount );
-            Assert.Equal( "/create-pr", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/prs", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) );
         });
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            Assert.Equal( "/create-pr", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/prs", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.BadGateway )
             {
                 ReasonPhrase = "ipv4-failed",
@@ -497,12 +463,12 @@ public class ApiServiceTests {
 
         var defaultClient = CreateClient((request, _) => {
             Interlocked.Increment( ref defaultRequestCount );
-            Assert.Equal( "/create-pr", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/prs", request.RequestUri?.AbsolutePath );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) );
         });
         var ipv4Client = CreateClient((request, _) => {
             Interlocked.Increment( ref ipv4RequestCount );
-            Assert.Equal( "/create-pr", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/prs", request.RequestUri?.AbsolutePath );
             throw new HttpRequestException( "ipv4-transport-error" );
         });
         var ipv6Client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError ) ));
@@ -527,54 +493,11 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task DownloadFilesAsyncは304レスポンスをキャッシュヒットとして扱う() {
-        // Arrange
-        string[] paths = [" path/one ", "path/two", string.Empty];
-        var client = CreateClient(async (request, token) => {
-            Assert.Equal( HttpMethod.Post, request.Method );
-            Assert.Equal( "/download-files", request.RequestUri?.AbsolutePath );
-            Assert.Contains( request.Headers.Accept, media => media.MediaType == "application/zip" );
-            Assert.Contains( request.Headers.Accept, media => media.MediaType == "application/problem+json" );
-            Assert.True( request.Headers.TryGetValues( "If-None-Match", out var etags ) );
-            Assert.Contains( "\"etag-value\"", etags );
-
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait(false);
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-
-            Assert.Equal( expected, pathValues );
-
-            var response = new HttpResponseMessage( HttpStatusCode.NotModified );
-            response.Headers.ETag = new EntityTagHeaderValue( "\"etag-value\"" );
-
-            return response;
-        });
-        var sut = CreateSut( client );
-
-        var request = new ApiDownloadFilesRequest( paths, "\"etag-value\"" );
-
-        // Act
-        var result = await sut.DownloadFilesAsync( request, TestContext.Current.CancellationToken );
-
-        // Assert
-        Assert.True( result.IsSuccess );
-        var value = result.Value;
-        Assert.True( value.IsNotModified );
-        Assert.Empty( value.Content );
-        Assert.Equal( ["path/one", "path/two"], value.Paths );
-        Assert.Equal( "\"etag-value\"", value.ETag );
-    }
-
-    [Fact]
     public async Task CreatePullRequestAsyncは有効なファイルのみを送信し結果を変換する() {
         // Arrange
         var client = CreateClient(async (request, token) => {
             Assert.Equal( HttpMethod.Post, request.Method );
-            Assert.Equal( "/create-pr", request.RequestUri?.AbsolutePath );
+            Assert.Equal( "/v2/prs", request.RequestUri?.AbsolutePath );
 
             var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait(false);
             using var document = JsonDocument.Parse( body );
@@ -589,7 +512,7 @@ public class ApiServiceTests {
             Assert.Equal( 2, files.Length );
             Assert.Equal( "upsert", files[0].GetProperty( "operation" ).GetString() );
             Assert.Equal( "content/upsert.txt", files[0].GetProperty( "path" ).GetString() );
-            Assert.Equal( "c29tZS1jb250ZW50", files[0].GetProperty( "content" ).GetString() );
+            Assert.Equal( "追加と更新\n本文", files[0].GetProperty( "content" ).GetString() );
             Assert.Equal( "delete", files[1].GetProperty( "operation" ).GetString() );
             Assert.Equal( "content/remove.txt", files[1].GetProperty( "path" ).GetString() );
             Assert.False( files[1].TryGetProperty( "content", out _ ) );
@@ -597,17 +520,11 @@ public class ApiServiceTests {
             const string responsePayload =
                 """
                 {
-                  "success": true,
-                  "message": "created",
-                  "data": [
-                    {
-                      "branchName": "feature/test",
-                      "commitSha": "abc123",
-                      "prNumber": 42,
-                      "prUrl": "https://example.test/pr/42",
-                      "note": "done"
-                    }
-                  ]
+                  "branchName": "feature/test",
+                  "commitSha": "abc123",
+                  "number": 42,
+                  "url": "https://example.test/pr/42",
+                  "reused": true
                 }
                 """;
 
@@ -626,7 +543,7 @@ public class ApiServiceTests {
             "Add files",
             "Body",
             [
-                new ApiPullRequestFile( ApiPullRequestFileOperation.Upsert, "content/upsert.txt", "c29tZS1jb250ZW50" ),
+                new ApiPullRequestFile( ApiPullRequestFileOperation.Upsert, "content/upsert.txt", "追加と更新\n本文" ),
                 new ApiPullRequestFile( ApiPullRequestFileOperation.Delete, "content/remove.txt", null ),
                 new ApiPullRequestFile( ApiPullRequestFileOperation.Upsert, "   ", "ignored" ),
             ]
@@ -639,7 +556,7 @@ public class ApiServiceTests {
         Assert.True( result.IsSuccess );
         var outcome = result.Value;
         Assert.True( outcome.Success );
-        Assert.Equal( "created", outcome.Message );
+        Assert.Null( outcome.Message );
         Assert.Single( outcome.Entries );
 
         var entry = outcome.Entries[0];
@@ -647,17 +564,18 @@ public class ApiServiceTests {
         Assert.Equal( "abc123", entry.CommitSha );
         Assert.Equal( 42, entry.PullRequestNumber );
         Assert.Equal( new Uri( "https://example.test/pr/42" ), entry.PullRequestUrl );
-        Assert.Equal( "done", entry.Note );
+        Assert.Null( entry.Note );
+        Assert.True( entry.Reused );
     }
 
     [Fact]
-    public async Task DownloadFilesAsyncはパス未指定時に失敗を返す() {
+    public async Task DownloadFilePathsAsyncはパス未指定時に失敗を返す() {
         // Arrange
         var sut = CreateSut( CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) )) );
-        var request = new ApiDownloadFilesRequest( [], null );
+        var request = new ApiDownloadFilePathsRequest( [], null );
 
         // Act
-        var result = await sut.DownloadFilesAsync( request, TestContext.Current.CancellationToken );
+        var result = await sut.DownloadFilePathsAsync( request, TestContext.Current.CancellationToken );
 
         // Assert
         Assert.True( result.IsFailed );
@@ -683,13 +601,13 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task DownloadFilesAsyncはnullパス時に失敗を返す() {
+    public async Task DownloadFilePathsAsyncはnullパス時に失敗を返す() {
         // Arrange
         var sut = CreateSut( CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) )) );
-        var request = new ApiDownloadFilesRequest( null!, null );
+        var request = new ApiDownloadFilePathsRequest( null!, null );
 
         // Act
-        var result = await sut.DownloadFilesAsync( request, TestContext.Current.CancellationToken );
+        var result = await sut.DownloadFilePathsAsync( request, TestContext.Current.CancellationToken );
 
         // Assert
         Assert.True( result.IsFailed );
@@ -716,27 +634,6 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task DownloadFilesAsyncはHTTP失敗時に既存エラーコードを返す() {
-        // Arrange
-        var client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.BadGateway )
-        {
-            ReasonPhrase = "Bad Gateway",
-            Content = new StringContent( "upstream failed", Encoding.UTF8, "text/plain" ),
-        } ));
-        var sut = CreateSut( client );
-        var request = new ApiDownloadFilesRequest( ["path/one"], null );
-
-        // Act
-        var result = await sut.DownloadFilesAsync( request, TestContext.Current.CancellationToken );
-
-        // Assert
-        Assert.True( result.IsFailed );
-        Assert.Equal( "Bad Gateway - upstream failed", result.Errors.Single().Message );
-        Assert.Equal( nameof( ResultErrorKind.External ), result.Errors.Single().Metadata["kind"] );
-        Assert.Equal( "API_HTTP_ERROR", result.Errors.Single().Metadata["code"] );
-    }
-
-    [Fact]
     public async Task DownloadFilePathsAsyncはHTTP失敗時に既存エラーコードを返す() {
         // Arrange
         var client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError )
@@ -758,44 +655,19 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task DownloadFilePathsAsyncは304レスポンスをキャッシュヒットとして扱う() {
-        // Arrange
-        string[] paths = [" path/one ", "path/two", string.Empty];
-        var client = CreateClient(async (request, token) => {
-            Assert.Equal( HttpMethod.Post, request.Method );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
-            Assert.Contains( request.Headers.Accept, media => media.MediaType == "application/json" );
-            Assert.Contains( request.Headers.Accept, media => media.MediaType == "application/problem+json" );
-            Assert.True( request.Headers.TryGetValues( "If-None-Match", out var etags ) );
-            Assert.Contains( "\"etag-value\"", etags );
-
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait(false);
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-
-            Assert.Equal( expected, pathValues );
-
-            var response = new HttpResponseMessage( HttpStatusCode.NotModified );
-            response.Headers.ETag = new EntityTagHeaderValue( "\"etag-value\"" );
-
-            return response;
+    public async Task DownloadFilePathsAsyncはv2にない条件付き取得を送信しない() {
+        var client = CreateClient((request, _) => {
+            Assert.Equal( HttpMethod.Get, request.Method );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
+            Assert.False( request.Headers.Contains( "If-None-Match" ) );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.NotModified ) );
         });
         var sut = CreateSut( client );
-
-        var request = new ApiDownloadFilePathsRequest( paths, "\"etag-value\"" );
-
-        // Act
-        var result = await sut.DownloadFilePathsAsync( request, TestContext.Current.CancellationToken );
-
-        // Assert
-        Assert.True( result.IsSuccess );
-        var value = result.Value;
-        Assert.Empty( value.Items );
-        Assert.Equal( "\"etag-value\"", value.ETag );
+        var result = await sut.DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( ["path/one"], "\"old-etag\"" ),
+            TestContext.Current.CancellationToken );
+        Assert.True( result.IsFailed );
+        Assert.Equal( "API_HTTP_ERROR", result.Errors.Single().Metadata["code"] );
     }
 
     [Fact]
@@ -813,19 +685,12 @@ public class ApiServiceTests {
             }
             """;
 
-        var client = CreateClient(async (request, token) => {
-            Assert.Equal( HttpMethod.Post, request.Method );
-            Assert.Equal( "/download-file-paths", request.RequestUri?.AbsolutePath );
+        var client = CreateClient((request, _) => {
+            Assert.Equal( HttpMethod.Get, request.Method );
+            Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            var body = await request.Content!.ReadAsStringAsync( token ).ConfigureAwait(false);
-            using var document = JsonDocument.Parse( body );
-            var pathValues = document.RootElement
-                .GetProperty( "paths" )
-                .EnumerateArray()
-                .Select( element => element.GetString() )
-                .ToArray();
-
-            Assert.Equal( expected, pathValues );
+            Assert.Null( request.Content );
+            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
 
             var response = new HttpResponseMessage( HttpStatusCode.OK )
             {
@@ -833,7 +698,7 @@ public class ApiServiceTests {
             };
             response.Headers.ETag = new EntityTagHeaderValue( "\"etag-header\"" );
 
-            return response;
+            return Task.FromResult( response );
         });
         var sut = CreateSut( client );
 
@@ -845,7 +710,7 @@ public class ApiServiceTests {
         // Assert
         Assert.True( result.IsSuccess );
         var value = result.Value;
-        Assert.Equal( "\"etag-header\"", value.ETag );
+        Assert.Null( value.ETag );
         var items = value.Items.ToArray();
         Assert.Equal( 2, items.Length );
         Assert.Equal( "https://example.test/raw/file1", items[0].Url );
@@ -853,6 +718,123 @@ public class ApiServiceTests {
         Assert.Equal( "https://example.test/raw/file2", items[1].Url );
         Assert.Equal( "path/two", items[1].Path );
     }
+
+    [Fact]
+    public async Task GetTreeAsyncは特殊文字のカーソルをエンコードして全ページを取得する() {
+        var requests = new List<string>();
+        var client = CreateClient((request, _) => {
+            requests.Add( request.RequestUri!.PathAndQuery );
+            var payload = requests.Count == 1
+                ? """{"items":[{"path":"a/one.lua","sha":"one"}],"page":{"nextCursor":"+/=& 日本語"}}"""
+                : """{"items":[{"path":"a/two.lua","sha":"two"}],"page":{"nextCursor":null}}""";
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = new StringContent( payload, Encoding.UTF8, "application/json" ),
+            } );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).GetTreeAsync( TestContext.Current.CancellationToken );
+        Assert.True( result.IsSuccess );
+        Assert.Equal( ["a/one.lua", "a/two.lua"], result.Value.Select( entry => entry.Path ) );
+        Assert.Equal( ["/v2/tree", "/v2/tree?cursor=" + Uri.EscapeDataString( "+/=& 日本語" )], requests );
+    }
+
+    [Fact]
+    public async Task GetTreeAsyncは途中ページ失敗時に部分的な一覧を返さない() {
+        var calls = 0;
+        var client = CreateClient((request, _) => {
+            calls++;
+            return Task.FromResult( request.RequestUri!.Query.Length == 0
+                ? new HttpResponseMessage( HttpStatusCode.OK )
+                {
+                    Content = new StringContent( """{"items":[{"path":"partial.lua"}],"page":{"nextCursor":"next"}}""", Encoding.UTF8, "application/json" ),
+                }
+                : new HttpResponseMessage( HttpStatusCode.BadRequest ) );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).GetTreeAsync( TestContext.Current.CancellationToken );
+        Assert.True( result.IsFailed );
+        Assert.Equal( 6, calls );
+    }
+
+    [Theory]
+    [InlineData( "{\"items\":[]}" )]
+    [InlineData( "{\"items\":[],\"page\":{\"nextCursor\":\"same\"}}" )]
+    public async Task GetTreeAsyncは不正なページ情報を成功として返さない( string payload ) {
+        var client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+        {
+            Content = new StringContent( payload, Encoding.UTF8, "application/json" ),
+        } ));
+        var result = await CreateSut( client, settings: PreferredDefault() ).GetTreeAsync( TestContext.Current.CancellationToken );
+        Assert.True( result.IsFailed );
+    }
+
+    [Fact]
+    public async Task DownloadFilePathsAsyncは500件を100件ずつ取得して全件を返す() {
+        var paths = Enumerable.Range( 0, 500 ).Select( i => $"フォルダ/{i} +&#?,%.lua" ).ToArray();
+        var received = new List<string>();
+        var client = CreateClient((request, _) => {
+            Assert.Equal( HttpMethod.Get, request.Method );
+            Assert.Equal( "/v2/files", request.RequestUri!.AbsolutePath );
+            Assert.False( request.Headers.Contains( "If-None-Match" ) );
+            var batch = GetQueryPaths( request.RequestUri );
+            Assert.Equal( 100, batch.Length );
+            received.AddRange( batch );
+            var response = new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = batch.Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            };
+            response.Headers.ETag = new EntityTagHeaderValue( "\"batch-etag\"" );
+            return Task.FromResult( response );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, "\"old-etag\"" ), TestContext.Current.CancellationToken );
+        Assert.True( result.IsSuccess );
+        Assert.Equal( paths, received );
+        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
+        Assert.Null( result.Value.ETag );
+    }
+
+    [Fact]
+    public async Task DownloadFilePathsAsyncは途中バッチ失敗時に部分的な結果を返さない() {
+        var client = CreateClient((request, _) => Task.FromResult(
+            GetQueryPaths( request.RequestUri! )[0] == "path/100"
+                ? new HttpResponseMessage( HttpStatusCode.BadRequest )
+                : new HttpResponseMessage( HttpStatusCode.OK )
+                {
+                    Content = JsonContent( new { files = GetQueryPaths( request.RequestUri! ).Select( path => new { path, url = "https://example.test/raw" } ) } ),
+                } ));
+        var paths = Enumerable.Range( 0, 101 ).Select( i => $"path/{i}" ).ToArray();
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
+        Assert.True( result.IsFailed );
+    }
+
+    [Fact]
+    public async Task DownloadFilePathsAsyncは重複パスを一度だけ送信する() {
+        var client = CreateClient((request, _) => {
+            Assert.Equal( ["path/one"], GetQueryPaths( request.RequestUri! ) );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = new[] { new { path = "path/one", url = "https://example.test/raw" } } } ),
+            } );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( ["path/one", " path/one "], null ), TestContext.Current.CancellationToken );
+        Assert.True( result.IsSuccess );
+        Assert.Single( result.Value.Items );
+    }
+
+    private static StringContent JsonContent( object payload ) =>
+        new( JsonSerializer.Serialize( payload, s_webOptions ), Encoding.UTF8, "application/json" );
+
+    private static AppSettings PreferredDefault() => new()
+    {
+        ApiPreferredRoute = ApiRoutePreference.Default,
+        ApiPreferredRouteValidUntilUtc = DateTimeOffset.UtcNow.AddHours( 1 ),
+    };
+
+    private static string[] GetQueryPaths( Uri uri ) =>
+        uri.Query.TrimStart( '?' ).Split( '&' )
+            .Select( part => Uri.UnescapeDataString( part.Split( '=', 2 )[1] ) ).ToArray();
 
     private static ApiService CreateSut(
         HttpClient defaultClient,
@@ -869,9 +851,8 @@ public class ApiServiceTests {
     private static string CreateTreePayload( string path, string sha ) =>
         $$"""
           {
-            "success": true,
-            "message": "ok",
-            "data": [
+            "page": { "nextCursor": null },
+            "items": [
               {
                 "mode": "100644",
                 "path": "{{path}}",

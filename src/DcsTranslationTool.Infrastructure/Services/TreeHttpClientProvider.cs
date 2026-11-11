@@ -14,7 +14,7 @@ public sealed class TreeHttpClientProvider(
     HttpClient? ipv4PreferredClient = null,
     HttpClient? ipv6PreferredClient = null
 ) : ITreeHttpClientProvider {
-    private const string DefaultBaseUrl = "https://dcs-translation-japanese-cloudflare-worker.dcs-translation-japanese.workers.dev/";
+    private const string DefaultBaseUrl = "https://api.dcs-translation-japanese.workers.dev/";
 
     private readonly TreeClientBundle _bundle = CreateBundle( defaultClient, ipv4PreferredClient, ipv6PreferredClient );
 

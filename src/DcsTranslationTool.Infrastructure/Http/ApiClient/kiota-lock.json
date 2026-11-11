@@ -1,6 +1,6 @@
 {
-  "descriptionHash": "487B50BA90B7EFB67776B43E9A33F3D737E73BEA06D9401C7D8A4A6A6FEF07F740EF47C4ACCA01A21AB39AA3A749A27BF8324F85A176795612F8D5FA9AAA610C",
-  "descriptionLocation": "https://dcs-translation-japanese-cloudflare-worker.dcs-translation-japanese.workers.dev/openapi.json",
+  "descriptionHash": "37B746AC3E61789F7081F48841EF87E1EB3D28198D8FA0439288F31D8B5D43A33C07B2DBD843746A358BBC3F494A40FD747238B43D9D50275551C8BA8390A5D0",
+  "descriptionLocation": "https://api.dcs-translation-japanese.workers.dev/v2/openapi.json",
   "lockFileVersion": "1.0.0",
   "kiotaVersion": "1.29.0",
   "clientClassName": "ApiClient",
