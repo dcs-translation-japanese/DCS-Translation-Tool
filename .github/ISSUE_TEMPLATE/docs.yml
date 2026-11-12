@@ -8,7 +8,7 @@ body:
     attributes:
       label: 概要
       description: どのような改善が必要かを一文で記載してください
-      placeholder: "例: README のセットアップ手順に最新の .NET 8 コマンドを記載してほしい"
+      placeholder: "例: README のセットアップ手順に最新の .NET 11 コマンドを記載してほしい"
     validations:
       required: true
 

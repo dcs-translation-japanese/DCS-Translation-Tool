@@ -1134,7 +1134,7 @@ dictionary = {
         await viewModel.ExportAsync();
 
         context.TranslationDictionaryServiceMock.Verify( service => service.SaveDictionaryAsync(
-            Path.Combine( @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "dictionary" ),
+            Path.Combine( new[] { @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "dictionary" } ),
             It.Is<EditableTranslationDictionary>( dictionary => ReferenceEquals( dictionary, editableDictionary ) ),
             It.Is<IReadOnlyDictionary<string, string>>( items =>
                 items.Count == 1
@@ -1147,7 +1147,7 @@ dictionary = {
         var actionHandler = Assert.IsType<Action<object>>( notification.ActionHandler );
         actionHandler( Assert.IsType<string>( notification.ActionArgument ) );
         context.SystemServiceMock.Verify(
-            service => service.OpenDirectory( Path.Combine( @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP" ) ),
+            service => service.OpenDirectory( Path.Combine( new[] { @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP" } ) ),
             Times.Once );
     }
 
@@ -1442,7 +1442,7 @@ dictionary = {
         await viewModel.ExportAsync();
 
         context.TranslationDictionaryServiceMock.Verify( service => service.SaveDictionaryAsync(
-            Path.Combine( @"C:\Translate", "UserMissions", "MyMissions", "SampleMission.miz", "l10n", "JP", "dictionary" ),
+            Path.Combine( new[] { @"C:\Translate", "UserMissions", "MyMissions", "SampleMission.miz", "l10n", "JP", "dictionary" } ),
             It.Is<EditableTranslationDictionary>( dictionary => ReferenceEquals( dictionary, editableDictionary ) ),
             It.Is<IReadOnlyDictionary<string, string>>( items =>
                 items.Count == 1
@@ -1492,7 +1492,7 @@ dictionary = {
         await viewModel.ExportPoAsync();
 
         context.TranslationDictionaryServiceMock.Verify( service => service.SavePoAsync(
-            Path.Combine( @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "Mission1.po" ),
+            Path.Combine( new[] { @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "Mission1.po" } ),
             It.Is<IReadOnlyList<TranslationDictionaryItem>>( items =>
                 items.Count == 2
                 && items[0].Key == "DictKey_sortie_1"
@@ -1510,7 +1510,7 @@ dictionary = {
         var actionHandler = Assert.IsType<Action<object>>( notification.ActionHandler );
         actionHandler( Assert.IsType<string>( notification.ActionArgument ) );
         context.SystemServiceMock.Verify(
-            service => service.OpenDirectory( Path.Combine( @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP" ) ),
+            service => service.OpenDirectory( Path.Combine( new[] { @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP" } ) ),
             Times.Once );
     }
 
@@ -1531,7 +1531,7 @@ dictionary = {
         await viewModel.ExportPoAsync();
 
         context.TranslationDictionaryServiceMock.Verify( service => service.SavePoAsync(
-            Path.Combine( @"C:\Translate", "UserMissions", "MyMissions", "SampleMission.miz", "l10n", "JP", "SampleMission.po" ),
+            Path.Combine( new[] { @"C:\Translate", "UserMissions", "MyMissions", "SampleMission.miz", "l10n", "JP", "SampleMission.po" } ),
             It.Is<IReadOnlyList<TranslationDictionaryItem>>( items =>
                 items.Count == 1
                 && items[0].Key == "DictKey_descriptionFoo_1"
@@ -1636,7 +1636,7 @@ dictionary = {
         await viewModel.ExportCsvAsync();
 
         context.TranslationDictionaryServiceMock.Verify( service => service.SaveCsvAsync(
-            Path.Combine( @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "Mission1.csv" ),
+            Path.Combine( new[] { @"C:\Translate", "DCSWorld", "Mods", "aircraft", "A10C", "Mission1.miz", "l10n", "JP", "Mission1.csv" } ),
             It.Is<IReadOnlyList<TranslationDictionaryItem>>( items =>
                 items.Count == 2
                 && items[0].Key == "DictKey_sortie_1"

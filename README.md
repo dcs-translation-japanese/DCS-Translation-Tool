@@ -13,7 +13,8 @@ DCS: World の日本語化を支援する **非公式** Windows用デスクト�
 
 ## 動作環境
 
-- OS: Windows 7以上（win-x64 / win-x86）
+- OS: Windows 10以上
+- 配布形式: win-x64 / win-x86（自己完結型）
 - Runtime: 不要（.NET ランタイム同梱）
 
 ## 使い方
@@ -74,7 +75,9 @@ DCS: World の日本語化を支援する **非公式** Windows用デスクト�
 
 ## 開発者向け
 
-リポジトリルートで実行する。
+.NET SDK 11.0.xとPowerShell 7が必要です。
+
+リポジトリルートで実行してください。
 
 ```powershell
 dotnet restore --locked-mode
