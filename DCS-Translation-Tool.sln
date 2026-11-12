@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36603.0
+# Visual Studio Version 18
+VisualStudioVersion = 18.12.12405.243
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DcsTranslationTool.Presentation.Wpf", "src\DcsTranslationTool.Presentation.Wpf\DcsTranslationTool.Presentation.Wpf.csproj", "{7DCDDC84-D824-44DD-A7A2-8876F445BA04}"
 EndProject
