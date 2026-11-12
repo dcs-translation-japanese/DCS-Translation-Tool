@@ -1,16 +1,12 @@
 {
   "version": 1,
   "dependencies": {
-    "net8.0": {
+    "net11.0": {
       "FluentResults": {
         "type": "Direct",
         "requested": "[4.0.0, )",
         "resolved": "4.0.0",
-        "contentHash": "wKfdLvDnDVhXlSreU7u/NFNHH6EfoOhAloEID4ePAyk+ZliowKZJvX+aCL4hxhFc9Jj74t62amS4LyOYTjXGCg==",
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "2.1.1",
-          "System.Threading.Tasks.Extensions": "4.5.4"
-        }
+        "contentHash": "wKfdLvDnDVhXlSreU7u/NFNHH6EfoOhAloEID4ePAyk+ZliowKZJvX+aCL4hxhFc9Jj74t62amS4LyOYTjXGCg=="
       },
       "Microsoft.Data.Sqlite": {
         "type": "Direct",
@@ -38,7 +34,6 @@
         "resolved": "2.1.6",
         "contentHash": "2WqLn450LzS9weAuPBTx4X3/xCQ8KJ1J9tfoiVBaUDUEW8X/1wl16xZYPCNtJ3xvI3V1viiRiz1tyMW3SfKxFA==",
         "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0",
           "Microsoft.Kiota.Abstractions": "2.1.6"
         }
       },
@@ -108,16 +103,6 @@
           "SQLitePCLRaw.core": "2.1.13"
         }
       },
-      "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "cjWrLkJXK0rs4zofsK4bSdg+jhDLTaxrkXu4gS6Y7MAlCvRyNNgwY/lJi5RDlQOnSZweHqoyvgvbdvQsRIW+hg=="
-      },
-      "Microsoft.Extensions.Logging.Abstractions": {
-        "type": "Transitive",
-        "resolved": "2.1.1",
-        "contentHash": "XRzK7ZF+O6FzdfWrlFTi1Rgj2080ZDsd46vzOjadHUB0Cz5kOvDG8vI7caa5YFrsHQpcfn0DxtjS4E46N4FZsA=="
-      },
       "Microsoft.IO.RecyclableMemoryStream": {
         "type": "Transitive",
         "resolved": "3.0.1",
@@ -135,10 +120,7 @@
       "SQLitePCLRaw.core": {
         "type": "Transitive",
         "resolved": "2.1.13",
-        "contentHash": "2joofoinuHBFs0nMX3nKuXgxpXryRkCOdM2Ua6HBqQLLy6IW+5f28ZI+HAvMyF8vG7XfNz/lwfBfE6V4juru8Q==",
-        "dependencies": {
-          "System.Memory": "4.5.3"
-        }
+        "contentHash": "2joofoinuHBFs0nMX3nKuXgxpXryRkCOdM2Ua6HBqQLLy6IW+5f28ZI+HAvMyF8vG7XfNz/lwfBfE6V4juru8Q=="
       },
       "SQLitePCLRaw.lib.e_sqlite3": {
         "type": "Transitive",
@@ -157,16 +139,6 @@
         "type": "Transitive",
         "resolved": "2.0.12",
         "contentHash": "b/w8GfmVjf5c+8sTtGRVuwj6uC5KoPIn8+795xKlnGBBtph4FIVvgJVnh+x9dbDOkrst7XivIDJgyZSDFNsOYA=="
-      },
-      "System.Memory": {
-        "type": "Transitive",
-        "resolved": "4.5.3",
-        "contentHash": "3oDzvc/zzetpTKWMShs1AADwZjQ/36HnsufHRPcOjyRAAMLDlu2iD33MBI2opxnezcVUtXyqDXXjoFMOU9c7SA=="
-      },
-      "System.Threading.Tasks.Extensions": {
-        "type": "Transitive",
-        "resolved": "4.5.4",
-        "contentHash": "zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg=="
       },
       "dcstranslationtool.application": {
         "type": "Project",

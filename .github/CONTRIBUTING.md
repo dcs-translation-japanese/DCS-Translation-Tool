@@ -22,15 +22,17 @@
 
 ## 1. 開発環境
 
-| 項目                     | 必要なバージョン / 内容                          |
-|--------------------------|--------------------------------------------------|
-| .NET SDK                 | 8.0.x                                            |
-| IDE                      | Visual Studio 2026 Stable                        |
-| ワークロード             | .NET デスクトップ開発                            |
-| ターゲットフレームワーク | 既存の `net8.0` 系（WPF は `net8.0-windows`）    |
-| C# 言語バージョン        | 12                                               |
-| 動作OS                   | Windows 11（x64）                                |
-| シェル                   | PowerShell 7（`pwsh`、アプリ更新E2Eで使用）      |
+| 項目                     | 必要なバージョン / 内容                     |
+| ------------------------ | ------------------------------------------- |
+| .NET SDK                 | 11.0.x                                      |
+| IDE                      | Visual Studio 2026 18.12以降                |
+| ワークロード             | .NET デスクトップ開発                       |
+| ターゲットフレームワーク | `net11.0` 系（WPF は `net11.0-windows`）    |
+| C# 言語バージョン        | 15                                          |
+| 開発OS                   | .NET 11がサポートするWindows(x64)           |
+| シェル                   | PowerShell 7（`pwsh`、アプリ更新E2Eで使用） |
+
+配布対象は`win-x64`・`win-x86`の自己完結型アプリです。対応OSは[.NET 11の対応Windows一覧](https://github.com/dotnet/core/blob/main/release-notes/11.0/supported-os.md#windows)に従い、Windows自体のサポート期間内に限ります。
 
 ## 2. Issue と機能要望
 

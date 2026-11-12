@@ -14,12 +14,13 @@ public sealed class WireMockTestServer : IDisposable {
     /// </summary>
     public WireMockTestServer() {
         this.Server = WireMockServer.Start();
+        this.BaseUri = new Uri( this.Server.Urls[0] );
     }
 
     /// <summary>
     /// サーバーのベース URL を返す。
     /// </summary>
-    public Uri BaseUri => new( this.Server.Urls[0] );
+    public Uri BaseUri { get; }
 
     /// <summary>
     /// サーバー本体を返す。
