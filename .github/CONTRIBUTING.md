@@ -22,13 +22,15 @@
 
 ## 1. 開発環境
 
-| 項目                     | 推奨バージョン / 内容       |
-|--------------------------|-----------------------------|
-| .NET SDK                 | 8.0.x                       |
-| IDE                      | Visual Studio 2022 (17.14+) |
-| ターゲットフレームワーク | `net8.0-windows`            |
-| C# 言語バージョン        | 12                          |
-| 動作OS                   | Windows 11                  |
+| 項目                     | 必要なバージョン / 内容                          |
+|--------------------------|--------------------------------------------------|
+| .NET SDK                 | 8.0.x                                            |
+| IDE                      | Visual Studio 2026 Stable                        |
+| ワークロード             | .NET デスクトップ開発                            |
+| ターゲットフレームワーク | 既存の `net8.0` 系（WPF は `net8.0-windows`）    |
+| C# 言語バージョン        | 12                                               |
+| 動作OS                   | Windows 11（x64）                                |
+| シェル                   | PowerShell 7（`pwsh`、アプリ更新E2Eで使用）      |
 
 ## 2. Issue と機能要望
 
@@ -60,11 +62,26 @@
 
 ## 6. ビルドとテスト
 
+リポジトリルートの PowerShell 7 で実行します。
+
 ```powershell
-dotnet clean
-dotnet build --configuration Release
-dotnet test --configuration Release
+dotnet restore DCS-Translation-Tool.sln --locked-mode
+dotnet build DCS-Translation-Tool.sln --configuration Release --no-restore
+dotnet test DCS-Translation-Tool.sln --configuration Release --no-build --no-restore
 ```
+
+ソリューションのテストには `tests/` 配下の単体テストと結合テストが含まれます。自動更新機能のE2Eテストはソリューションに含まれないため、別途実行します。
+
+### 自動更新機能のテスト
+
+Windows の対話型デスクトップにサインインした状態で実行します。FlaUI がアプリのウィンドウを操作するため、実行中はデスクトップをロックせず、対象ウィンドウを手動操作しないでください。
+
+```powershell
+./build/Invoke-ApplicationUpdateE2e.ps1 -RuntimeIdentifier win-x64
+./build/Invoke-ApplicationUpdateE2e.ps1 -RuntimeIdentifier win-x86
+```
+
+このスクリプトは自己完結型アプリとテスト用更新アセットを生成し、E2E テストに必要な環境変数を設定します。E2E プロジェクトへの `dotnet test` 単独実行では代用できません。生成物・TRX・失敗時の診断情報は `artifacts/e2e/<RID>/` に保存され、同じ RID で再実行するとその出力先は作り直されます。
 
 新機能またはバグ修正には 単体テスト を必ず追加。
 
