@@ -21,16 +21,26 @@ public class FileEntryViewModel(
 
     #region Fields
 
+    /// <summary>チェック状態を保持する。子要素の選択が混在している場合は null。</summary>
     private bool? _checkState = false;
+    /// <summary>エントリーが選択されているかどうかを保持する。</summary>
     private bool _isSelected = false;
 
+    /// <summary>このエントリーに属する子エントリーの一覧。</summary>
     private ObservableCollection<IFileEntryViewModel> _children = [];
+    /// <summary>子エントリーの変更通知を購読済みかどうかを保持する。</summary>
     private bool _childrenHandlersAttached;
+    /// <summary>チェック状態の伝播中に、子エントリーからの変更通知による再計算を抑制するフラグ。</summary>
     private bool _suppressCheckPropagation = false;
+    /// <summary>エントリーの変更種別を判定するモード。</summary>
     private readonly ChangeTypeMode _mode = changeTypeMode;
+    /// <summary>ツリー上で子エントリーを展開しているかどうかを保持する。</summary>
     private bool _isExpanded;
+    /// <summary>エントリーを画面に表示するかどうかを保持する。</summary>
     private bool _isVisible = true;
+    /// <summary>前回の判定で得られた変更種別のキャッシュ。</summary>
     private FileChangeType? _cachedChangeType;
+    /// <summary>変更種別の再計算が必要かどうかを保持する。</summary>
     private bool _isChangeTypeDirty = true;
 
     #endregion
@@ -155,6 +165,9 @@ public class FileEntryViewModel(
 
     #region Ctor / Dispose
 
+    /// <summary>
+    /// 子ノードのイベント購読を解除してノードを破棄する。
+    /// </summary>
     public void Dispose() {
         DetachChildrenHandlers( Children );
         GC.SuppressFinalize( this );
@@ -211,6 +224,9 @@ public class FileEntryViewModel(
 
     #region Private Methods
 
+    /// <summary>
+    /// 子ノードのイベントが未購読の場合だけ購読を開始する。
+    /// </summary>
     private void EnsureChildrenHandlersAttached() {
         if(_childrenHandlersAttached) return;
         AttachChildrenHandlers( _children );
@@ -336,6 +352,11 @@ public class FileEntryViewModel(
 
     #region Event Handlers
 
+    /// <summary>
+    /// 子ノードの増減に合わせてイベント購読と変更種別、チェック状態を更新する。
+    /// </summary>
+    /// <param name="sender">イベントの送信元。</param>
+    /// <param name="e">イベントの情報。</param>
     private void OnChildrenCollectionChanged( object? sender, NotifyCollectionChangedEventArgs e ) {
         if(e.Action == NotifyCollectionChangedAction.Reset) {
             DetachChildrenHandlers( Children );
@@ -365,6 +386,11 @@ public class FileEntryViewModel(
         if(!CanCheck && CheckState is not false) CheckState = false;
     }
 
+    /// <summary>
+    /// 子ノードの変更種別が変わったときに集計値とチェック可否を更新する。
+    /// </summary>
+    /// <param name="sender">イベントの送信元。</param>
+    /// <param name="e">イベントの情報。</param>
     private void OnChildPropertyChanged( object? sender, PropertyChangedEventArgs e ) {
         if(e.PropertyName == nameof( ChangeType )) {
             InvalidateChangeType();
@@ -375,7 +401,10 @@ public class FileEntryViewModel(
     /// <summary>子のチェック状態変化時に自分の状態を再計算する</summary>
     private void OnChildCheckStateChanged( object? sender, bool? e ) {
         if(_suppressCheckPropagation) return;
+        var previousState = CheckState;
         RecomputeCheckStateFromChildren();
+        // 部分選択のままでも、操作ボタンと案内には選択内容の変更を通知する。
+        if(CheckState == previousState) CheckStateChanged?.Invoke( this, CheckState );
     }
 
     #endregion

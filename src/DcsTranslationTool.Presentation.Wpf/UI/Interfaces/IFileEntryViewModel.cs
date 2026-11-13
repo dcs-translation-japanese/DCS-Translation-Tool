@@ -95,7 +95,7 @@ public interface IFileEntryViewModel : IDisposable {
     #region Events
 
     /// <summary>
-    /// チェック状態が変更されたときに通知されるイベント。
+    /// 自身または子孫のチェック状態が変更されたときに通知されるイベント。
     /// </summary>
     event EventHandler<bool?>? CheckStateChanged;
 

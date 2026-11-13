@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Navigation;
 using System.Windows.Shell;
 
@@ -7,12 +8,24 @@ namespace DcsTranslationTool.Presentation.Wpf.Shell;
 /// MainView.xaml の相互作用ロジック
 /// </summary>
 public partial class ShellView : Window {
+    /// <summary>メインウィンドウの画面要素を初期化する。</summary>
     public ShellView() {
         InitializeComponent();
         Loaded += OnLoaded;
     }
 
+    /// <summary>閉じるボタンの操作でメインウィンドウを閉じる。</summary>
+    /// <param name="sender">イベントの送信元。</param>
+    /// <param name="e">イベントの情報。</param>
     private void CloseWindowButton_Click( object sender, RoutedEventArgs e ) => Close();
+
+    /// <summary>ドラッグ量に応じて操作案内ダイアログを移動する。</summary>
+    /// <param name="sender">イベントの送信元。</param>
+    /// <param name="e">イベントの情報。</param>
+    private void CoachMarkDialog_DragDelta( object sender, DragDeltaEventArgs e ) {
+        CoachOverlay.MoveDialog( e.HorizontalChange, e.VerticalChange );
+        e.Handled = true;
+    }
 
     /// <summary>
     /// 初回表示後に Shell の最小サイズを同期する。

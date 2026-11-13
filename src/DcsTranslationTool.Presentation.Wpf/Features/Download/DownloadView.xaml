@@ -4,6 +4,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:local="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.Download"
+      xmlns:coach="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.CoachMarks"
       xmlns:common="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.Common"
       xmlns:vm="clr-namespace:DcsTranslationTool.Presentation.Wpf.ViewModels"
       xmlns:resx="clr-namespace:DcsTranslationTool.Resources;assembly=DcsTranslationTool.Resources"
@@ -109,6 +110,8 @@
                                 <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                     <StackPanel Orientation="Horizontal">
                                         <CheckBox Style="{StaticResource CompactTreeCheckBoxStyle}"
+                                                  coach:CoachMarkHighlight.TargetId="{Binding Path}"
+                                                  coach:CoachMarkHighlight.CurrentTarget="{Binding DataContext.CoachMarks.Target, RelativeSource={RelativeSource AncestorType=Page}}"
                                                   IsChecked="{Binding CheckState, Mode=TwoWay}"
                                                   IsEnabled="{Binding CanCheck}" />
                                         <md:PackIcon VerticalAlignment="Center">
@@ -153,6 +156,7 @@
 
                 <!-- DLボタン -->
                 <common:ActionButton IconKind="Download"
+                                     coach:CoachMarkHighlight.TargetId="DownloadTranslation"
                                      Margin="{StaticResource SmallLeftMargin}"
                                      Text="{x:Static resx:Strings_Download.DownloadButtonContent}"
                                      IsIndicatorVisible="{Binding IsDownloading}"
@@ -163,6 +167,8 @@
 
                 <!-- Applyボタン -->
                 <common:ActionButton IconKind="ArchiveArrowDownOutline"
+                                     coach:CoachMarkHighlight.TargetId="ApplyTranslation"
+                                     coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}"
                                      Margin="{StaticResource SmallLeftMargin}"
                                      Text="{x:Static resx:Strings_Download.ApplyButtonContent}"
                                      IsIndicatorVisible="{Binding IsApplying}"

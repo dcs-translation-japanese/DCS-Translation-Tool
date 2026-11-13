@@ -17,15 +17,27 @@ using DcsTranslationTool.Presentation.Wpf.Shell;
 
 namespace DcsTranslationTool.Presentation.Wpf;
 
+/// <summary>
+/// アプリケーションの依存関係登録、起動、終了処理を構成する。
+/// </summary>
 public class Bootstrapper : BootstrapperBase {
+    /// <summary>画面やサービスの依存関係を解決する DI コンテナー。</summary>
     private SimpleContainer? container;
+    /// <summary>起動処理や未処理例外を記録するログサービス。</summary>
     private ILoggingService? loggingService;
+    /// <summary>アプリケーション設定の読み込みと保存を行うサービス。</summary>
     private IAppSettingsService? appSettingsService;
 
+    /// <summary>
+    /// Caliburn.Micro のブートストラッパーを初期化する。
+    /// </summary>
     public Bootstrapper() {
         Initialize();
     }
 
+    /// <summary>
+    /// アプリケーションサービスと画面の依存関係をコンテナーに登録する。
+    /// </summary>
     protected override void Configure() {
         container = new SimpleContainer();
 
@@ -68,6 +80,7 @@ public class Bootstrapper : BootstrapperBase {
         container.Singleton<ITranslationCreationViewModelFactory, TranslationCreationViewModelFactory>();
 
         // ViewModels
+        container.Singleton<DcsTranslationTool.Presentation.Wpf.Features.CoachMarks.CoachMarkService>();
         container.Singleton<ShellViewModel>();
         container.PerRequest<MainViewModel>();
         container.PerRequest<SettingsViewModel>();
@@ -77,6 +90,11 @@ public class Bootstrapper : BootstrapperBase {
         container.PerRequest<CreatePullRequestViewModel>();
     }
 
+    /// <summary>
+    /// 更新適用モードを処理するか、通常のシェル画面を表示する。
+    /// </summary>
+    /// <param name="sender">イベントの送信元。</param>
+    /// <param name="e">イベントの情報。</param>
     protected override async void OnStartup( object sender, StartupEventArgs e ) {
         loggingService?.Info( "起動" );
         if(e.Args is ["--apply-update", var requestPath]) {
@@ -111,10 +129,25 @@ public class Bootstrapper : BootstrapperBase {
         // （Caliburn の表示ヘルパは使わず、Attach 済み状態で起動する）
         await Task.CompletedTask;
     }
+    /// <summary>
+    /// 指定された型とキーで登録済みのサービスを解決する。
+    /// </summary>
+    /// <param name="service">解決対象のサービス型。</param>
+    /// <param name="key">サービスを識別する登録キー。</param>
+    /// <returns>解決したインスタンス。コンテナーが未構築の場合は null。</returns>
     protected override object? GetInstance( Type service, string key ) => container?.GetInstance( service, key );
 
+    /// <summary>
+    /// 指定された型で登録されているすべてのサービスを取得する。
+    /// </summary>
+    /// <param name="service">解決対象のサービス型。</param>
+    /// <returns>登録されたインスタンスの列挙。コンテナーが未構築の場合は null。</returns>
     protected override IEnumerable<object>? GetAllInstances( Type service ) => container?.GetAllInstances( service );
 
+    /// <summary>
+    /// 既存のインスタンスにコンテナーから依存関係を設定する。
+    /// </summary>
+    /// <param name="instance">依存関係を設定する既存のインスタンス。</param>
     protected override void BuildUp( object instance ) => container?.BuildUp( instance );
 
     /// <summary>

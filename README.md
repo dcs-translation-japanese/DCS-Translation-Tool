@@ -25,10 +25,11 @@ DCS: World の日本語化を支援する **非公式** Windows用デスクト�
 
 設定ページで以下のフォルダーを指定してください。
 
-- `Aircraft` フォルダー（`<DCS World>/Mods/aircraft` 相当）
-- `Campaigns` フォルダー（`<DCS World>/Mods/campaigns` 相当）
-- `ユーザーフォルダー`（`Saved Games/DCS/Missions` 相当）
-- `翻訳ファイルダウンロードフォルダー`
+- `DCS World インストールフォルダー`
+- `ユーザーフォルダー`（`%USERPROFILE%/Saved Games/DCS/Missions` 相当の実在するフォルダー）
+- `翻訳ファイルダウンロードフォルダー`（未作成のフォルダーも指定可能）
+
+初回起動時は、設定から Download ページでの `.miz` への翻訳注入までを画面上で案内します。ユーザーフォルダーは設定済みでも入力・確認を案内し、入力済みの値はそのまま使えます。
 
 ### 2. 翻訳ファイルを取得/適用する（Download）
 

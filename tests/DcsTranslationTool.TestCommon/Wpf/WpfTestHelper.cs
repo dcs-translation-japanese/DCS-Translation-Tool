@@ -11,8 +11,14 @@ public static class WpfTestHelper {
     public static void EnsureApplicationResources( params string[] resourceSources ) {
         var applicationType = GetRequiredType( "System.Windows.Application, PresentationFramework" );
         var currentApplication = applicationType.GetProperty( "Current" )?.GetValue( null );
-        currentApplication ??= Activator.CreateInstance( applicationType )
-            ?? throw new InvalidOperationException( "Application の生成に失敗した。" );
+        if(currentApplication is null) {
+            currentApplication = Activator.CreateInstance( applicationType )
+                ?? throw new InvalidOperationException( "Application の生成に失敗した。" );
+            var shutdownModeProperty = applicationType.GetProperty( "ShutdownMode" )
+                ?? throw new InvalidOperationException( "Application.ShutdownMode が見つからない。" );
+            // 個々のテストのウィンドウ終了で、後続テストの Application を終了させない。
+            shutdownModeProperty.SetValue( currentApplication, Enum.Parse( shutdownModeProperty.PropertyType, "OnExplicitShutdown" ) );
+        }
         var resourcesProperty = applicationType.GetProperty( "Resources" )
             ?? throw new InvalidOperationException( "Application.Resources が見つからない。" );
         var resources = resourcesProperty.GetValue( currentApplication )
@@ -128,6 +134,9 @@ public static class WpfTestHelper {
         return GetRequiredDescendant<T>( root );
     }
 
+    /// <summary>同じ参照先のリソース辞書が未登録の場合だけ追加する。</summary>
+    /// <param name="dictionaries">リソース辞書を追加するコレクション。</param>
+    /// <param name="source">追加するリソース辞書の絶対 URI。</param>
     private static void AddMergedDictionaryIfMissing( System.Collections.IEnumerable dictionaries, string source ) {
         if(dictionaries.Cast<object>().Any( dictionary => string.Equals( GetSourceOriginalString( dictionary ), source, StringComparison.OrdinalIgnoreCase ) )) {
             return;
@@ -140,15 +149,25 @@ public static class WpfTestHelper {
         dictionaries.GetType().GetMethod( "Add" )?.Invoke( dictionaries, [dictionary] );
     }
 
+    /// <summary>リソース辞書の参照先 URI に指定された元の文字列を取得する。</summary>
+    /// <param name="dictionary">参照先を取得するリソース辞書。</param>
+    /// <returns>参照先 URI の元の文字列。取得できない場合は null。</returns>
     private static string? GetSourceOriginalString( object dictionary ) {
         var source = dictionary.GetType().GetProperty( "Source" )?.GetValue( dictionary );
         return source?.GetType().GetProperty( "OriginalString" )?.GetValue( source ) as string;
     }
 
+    /// <summary>アセンブリ修飾名から型を取得し、見つからない場合は例外を送出する。</summary>
+    /// <param name="assemblyQualifiedName">取得する型のアセンブリ修飾名。</param>
+    /// <returns>指定した名前に対応する型。</returns>
+    /// <exception cref="InvalidOperationException">指定した型を取得できなかった場合。</exception>
     private static Type GetRequiredType( string assemblyQualifiedName ) =>
         Type.GetType( assemblyQualifiedName )
         ?? throw new InvalidOperationException( $"{assemblyQualifiedName} の型解決に失敗した。" );
 
+    /// <summary>指定した名前の引数なしメソッドが存在する場合に呼び出す。</summary>
+    /// <param name="target">メソッドを呼び出す対象。</param>
+    /// <param name="methodName">呼び出す引数なしメソッドの名前。</param>
     private static void InvokeParameterless( object target, string methodName ) {
         target.GetType().GetMethod( methodName, Type.EmptyTypes )?.Invoke( target, null );
     }

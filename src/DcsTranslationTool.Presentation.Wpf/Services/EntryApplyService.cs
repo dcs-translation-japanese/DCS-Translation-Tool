@@ -1,6 +1,7 @@
 using System.IO;
 
 using DcsTranslationTool.Application.Interfaces;
+using DcsTranslationTool.Presentation.Wpf.Features.CoachMarks;
 using DcsTranslationTool.Presentation.Wpf.Services.Abstractions;
 using DcsTranslationTool.Presentation.Wpf.UI.Interfaces;
 
@@ -12,7 +13,8 @@ namespace DcsTranslationTool.Presentation.Wpf.Services;
 public sealed class EntryApplyService(
     ILoggingService logger,
     IPathSafetyGuard pathSafetyGuard,
-    IZipService zipService
+    IZipService zipService,
+    CoachMarkService? coachMarks = null
 ) : IEntryApplyService {
     /// <inheritdoc/>
     public async Task<bool> ApplyEntriesAsync(
@@ -25,6 +27,7 @@ public sealed class EntryApplyService(
         Func<double, Task> progressCallback,
         CancellationToken cancellationToken = default
     ) {
+        var injectedMiz = false;
         var progressed = 0;
         var success = 0;
         var failed = 0;
@@ -124,6 +127,7 @@ public sealed class EntryApplyService(
                                     }
                                     else {
                                         logger.Info( $"圧縮ファイルへ適用した。ArchivePath={archivePath}, EntryPath={entryPath}" );
+                                        injectedMiz |= Path.GetExtension( archivePath ).Equals( ".miz", StringComparison.OrdinalIgnoreCase );
                                         success++;
                                     }
                                 }
@@ -146,6 +150,7 @@ public sealed class EntryApplyService(
             await progressCallback( Math.Min( 100, (double)progressed / targetEntries.Count * 100 ) );
         }
 
+        coachMarks?.RecordApplyResult( injectedMiz, failed > 0 );
         await progressCallback( 100 );
         await showSnackbarAsync( $"適用完了 成功:{success} 件 失敗:{failed} 件" );
         logger.Info( $"適用処理が完了した。成功={success}, 失敗={failed}" );
