@@ -617,23 +617,6 @@ public class ApiServiceTests {
     }
 
     [Fact]
-    public async Task DownloadFilePathsAsyncはパス上限超過時に失敗を返す() {
-        // Arrange
-        var sut = CreateSut( CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) )) );
-        var paths = Enumerable.Range( 1, 501 ).Select( index => $"path/{index}" ).ToArray();
-        var request = new ApiDownloadFilePathsRequest( paths, null );
-
-        // Act
-        var result = await sut.DownloadFilePathsAsync( request, TestContext.Current.CancellationToken );
-
-        // Assert
-        Assert.True( result.IsFailed );
-        Assert.Equal( "Paths には500個以下のアイテムを含める必要があります。", result.Errors.Single().Message );
-        Assert.Equal( nameof( ResultErrorKind.Validation ), result.Errors.Single().Metadata["kind"] );
-        Assert.Equal( "API_PATHS_LIMIT", result.Errors.Single().Metadata["code"] );
-    }
-
-    [Fact]
     public async Task DownloadFilePathsAsyncはHTTP失敗時に既存エラーコードを返す() {
         // Arrange
         var client = CreateClient((_, _) => Task.FromResult( new HttpResponseMessage( HttpStatusCode.InternalServerError )
@@ -767,16 +750,18 @@ public class ApiServiceTests {
         Assert.True( result.IsFailed );
     }
 
-    [Fact]
-    public async Task DownloadFilePathsAsyncは500件を100件ずつ取得して全件を返す() {
-        var paths = Enumerable.Range( 0, 500 ).Select( i => $"フォルダ/{i} +&#?,%.lua" ).ToArray();
+    [Theory]
+    [InlineData( 500 )]
+    [InlineData( 1001 )]
+    public async Task DownloadFilePathsAsyncは総件数を制限せず100件ずつ取得して全件を返す( int count ) {
+        var paths = Enumerable.Range( 0, count ).Select( i => $"path/{i}" ).ToArray();
         var received = new List<string>();
         var client = CreateClient((request, _) => {
             Assert.Equal( HttpMethod.Get, request.Method );
             Assert.Equal( "/v2/files", request.RequestUri!.AbsolutePath );
             Assert.False( request.Headers.Contains( "If-None-Match" ) );
             var batch = GetQueryPaths( request.RequestUri );
-            Assert.Equal( 100, batch.Length );
+            Assert.Equal( Math.Min( 100, count - received.Count ), batch.Length );
             received.AddRange( batch );
             var response = new HttpResponseMessage( HttpStatusCode.OK )
             {
@@ -791,6 +776,59 @@ public class ApiServiceTests {
         Assert.Equal( paths, received );
         Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
         Assert.Null( result.Value.ETag );
+    }
+
+    [Theory]
+    [InlineData( 68 )]
+    [InlineData( 1001 )]
+    public async Task DownloadFilePathsAsyncはエンコード後のURL長で分割して全件を返す( int count ) {
+        var paths = Enumerable.Range( 0, count )
+            .Select( i => $"Mods/aircraft/TF-51D/{new string( '翻', 20 )}/{i} +&#?,%.lua" ).ToArray();
+        var received = new List<string>();
+        var requestCount = 0;
+        var client = CreateClient((request, _) => {
+            requestCount++;
+            var uri = request.RequestUri!;
+            Assert.InRange( uri.AbsoluteUri.Length, 1, 4096 );
+            var batch = GetQueryPaths( uri );
+            Assert.InRange( batch.Length, 1, 100 );
+            received.AddRange( batch );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = batch.Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            } );
+        });
+
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
+
+        Assert.True( result.IsSuccess );
+        Assert.True( requestCount > 1 );
+        Assert.Equal( paths, received );
+        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
+    }
+
+    [Theory]
+    [InlineData( 0, 1 )]
+    [InlineData( 1, 2 )]
+    public async Task DownloadFilePathsAsyncはURL長4096文字の境界で分割する( int extraLength, int expectedRequests ) {
+        var paths = new[] { new string( 'a', 2000 ), new string( 'b', 2055 + extraLength ) };
+        var requestCount = 0;
+        var client = CreateClient((request, _) => {
+            requestCount++;
+            Assert.InRange( request.RequestUri!.AbsoluteUri.Length, 1, 4096 );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = GetQueryPaths( request.RequestUri ).Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            } );
+        });
+
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
+
+        Assert.True( result.IsSuccess );
+        Assert.Equal( expectedRequests, requestCount );
+        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
     }
 
     [Fact]

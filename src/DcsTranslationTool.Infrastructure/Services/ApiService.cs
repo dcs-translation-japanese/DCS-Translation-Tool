@@ -417,9 +417,8 @@ public class ApiService(
             return await ExecuteWithRouteFallbackAsync(
                 async ( routeClient, token ) => {
                     var items = new List<ApiDownloadFilePathsItem>();
-                    foreach(var batch in sanitizeResult.Value.Distinct( StringComparer.Ordinal ).Chunk( 100 )) {
+                    foreach(var query in CreateDownloadQueries( sanitizeResult.Value.Distinct( StringComparer.Ordinal ), routeClient.Client.BaseAddress! )) {
                         // Kiota 1.29 は配列クエリをカンマ区切りにするため、v2 の繰り返し path を構築する。
-                        var query = string.Join( "&", batch.Select( path => $"path={Uri.EscapeDataString( path )}" ) );
                         using var message = new HttpRequestMessage( HttpMethod.Get, $"v2/files?{query}" );
                         message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/json" ) );
                         message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
@@ -535,6 +534,30 @@ public class ApiService(
         return new ApiClientContext( client, requestAdapter, apiClient );
     }
 
+    /// <summary>件数とエンコード後の絶対URL長でダウンロードクエリを分割する。</summary>
+    private static IEnumerable<string> CreateDownloadQueries( IEnumerable<string> paths, Uri baseAddress ) {
+        // 4,520バイトでの成功実績より小さい余裕を持った上限にする。
+        const int maxUrlLength = 4096;
+        var prefixLength = new Uri( baseAddress, "v2/files?" ).AbsoluteUri.Length;
+        var parts = new List<string>();
+        var length = prefixLength;
+        foreach(var path in paths) {
+            var part = $"path={Uri.EscapeDataString( path )}";
+            if(parts.Count > 0 && (parts.Count == 100 || length + 1 + part.Length > maxUrlLength)) {
+                yield return string.Join( "&", parts );
+                parts.Clear();
+                length = prefixLength;
+            }
+
+            // 単一パスは分割できないため、そのまま送信して既存のAPIエラー処理に委ねる。
+            length += (parts.Count > 0 ? 1 : 0) + part.Length;
+            parts.Add( part );
+        }
+
+        if(parts.Count > 0)
+            yield return string.Join( "&", parts );
+    }
+
     /// <summary>パス一覧を検証し、空白除去済み配列へ正規化する。</summary>
     /// <param name="paths">検証対象のパス一覧。</param>
     /// <returns>成功時は正規化済みパス配列、失敗時は検証エラーを返す。</returns>
@@ -550,9 +573,6 @@ public class ApiService(
 
         if(sanitizedPaths.Length == 0)
             return Result.Fail( ResultErrorFactory.Validation( "Paths には少なくとも1つの空でない値が含まれている必要があります。", "API_PATHS_EMPTY" ) );
-
-        if(sanitizedPaths.Length > 500)
-            return Result.Fail( ResultErrorFactory.Validation( "Paths には500個以下のアイテムを含める必要があります。", "API_PATHS_LIMIT" ) );
 
         return Result.Ok( sanitizedPaths );
     }

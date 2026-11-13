@@ -342,9 +342,10 @@ public sealed class ApiServiceWireMockTests {
     [Theory]
     [InlineData( 101 )]
     [InlineData( 500 )]
+    [InlineData( 1001 )]
     public async Task DownloadFilePathsAsyncはWireMockで100件ずつの繰り返しクエリを送信する( int count ) {
         using var server = new WireMockTestServer();
-        var paths = Enumerable.Range( 0, count ).Select( i => $"path/{i} +&#?,%.lua" ).ToArray();
+        var paths = Enumerable.Range( 0, count ).Select( i => $"p/{i} +&#?,%.lua" ).ToArray();
         foreach(var batch in paths.Chunk( 100 )) {
             server.Server
                 .Given( Request.Create().WithPath( "/v2/files" ).WithParam( "path", batch ).UsingGet() )
