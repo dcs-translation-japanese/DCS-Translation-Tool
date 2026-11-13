@@ -115,59 +115,65 @@
                                     CloseButton="{Binding ElementName=CloseWindowButton}"
                                     Visibility="{Binding CoachMarks.IsActive, Converter={StaticResource CoachMarkVisibility}}"
                                     WindowChrome.IsHitTestVisibleInChrome="False">
-                <Border Width="Auto" Padding="24" CornerRadius="12"
-                        WindowChrome.IsHitTestVisibleInChrome="True"
-                        Background="{DynamicResource MaterialDesign.Brush.Background}"
-                        BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}" BorderThickness="1"
-                        AutomationProperties.AutomationId="CoachMarkPanel"
-                        AutomationProperties.Name="{Binding CoachMarkTitle}">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.3" />
-                    </Border.Effect>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <Grid WindowChrome.IsHitTestVisibleInChrome="True">
+                    <!-- 影を本文と分離し、文字を中間画像として描画させない。 -->
+                    <Border CornerRadius="12" IsHitTestVisible="False"
+                            Background="{DynamicResource MaterialDesign.Brush.Background}">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.3" />
+                        </Border.Effect>
+                    </Border>
+                    <Border Width="Auto" Padding="24" CornerRadius="12"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
+                            Background="{DynamicResource MaterialDesign.Brush.Background}"
+                            BorderBrush="{DynamicResource MaterialDesign.Brush.Primary}" BorderThickness="1"
+                            AutomationProperties.AutomationId="CoachMarkPanel"
+                            AutomationProperties.Name="{Binding CoachMarkTitle}">
                         <Grid>
-                            <TextBlock Text="{Binding CoachMarkTitle}" Margin="0,0,28,0"
-                                       Style="{StaticResource MaterialDesignTitleMediumTextBlock}"
-                                       FontWeight="SemiBold" TextWrapping="Wrap"
-                                       AutomationProperties.LiveSetting="Polite" />
-                            <md:PackIcon Kind="DragVertical" Width="20" Height="20"
-                                         HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0.54" />
-                            <Thumb Background="Transparent" Cursor="SizeAll" Focusable="False"
-                                   DragDelta="CoachMarkDialog_DragDelta"
-                                   AutomationProperties.AutomationId="CoachMarkDialogDragHandle">
-                                <Thumb.Template>
-                                    <ControlTemplate TargetType="Thumb">
-                                        <Border Background="{TemplateBinding Background}" />
-                                    </ControlTemplate>
-                                </Thumb.Template>
-                            </Thumb>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <TextBlock Text="{Binding CoachMarkTitle}" Margin="0,0,28,0"
+                                           Style="{StaticResource MaterialDesignTitleMediumTextBlock}"
+                                           FontWeight="SemiBold" TextWrapping="Wrap"
+                                           AutomationProperties.LiveSetting="Polite" />
+                                <md:PackIcon Kind="DragVertical" Width="20" Height="20"
+                                             HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0.54" />
+                                <Thumb Background="Transparent" Cursor="SizeAll" Focusable="False"
+                                       DragDelta="CoachMarkDialog_DragDelta"
+                                       AutomationProperties.AutomationId="CoachMarkDialogDragHandle">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="{TemplateBinding Background}" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Grid>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,16,0,24">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding CoachMarkDescription}" TextWrapping="Wrap" LineHeight="24" />
+                                    <TextBlock Text="{Binding CoachMarks.ErrorMessage}" TextWrapping="Wrap" FontWeight="Bold"
+                                               Foreground="{DynamicResource MaterialDesign.Brush.ValidationError}"
+                                               AutomationProperties.LiveSetting="Assertive" />
+                                </StackPanel>
+                            </ScrollViewer>
+                            <WrapPanel Grid.Row="2" HorizontalAlignment="Right">
+                                <Button Content="{x:Static resx:Strings_CoachMarks.SkipButtonText}" Margin="0,4,8,0"
+                                        Style="{StaticResource MaterialDesignFlatButton}"
+                                        cal:Message.Attach="SkipCoachMark()"
+                                        Visibility="{Binding CoachMarks.CanSkip, Converter={StaticResource CoachMarkVisibility}}"
+                                        AutomationProperties.AutomationId="SkipCoachMark" />
+                                <Button Content="{Binding CoachMarks.NextButtonText}" Margin="0,4,0,0"
+                                        IsEnabled="{Binding CanNextCoachMark}"
+                                        cal:Message.Attach="NextCoachMark()"
+                                        AutomationProperties.AutomationId="NextCoachMark" />
+                            </WrapPanel>
                         </Grid>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,16,0,24">
-                            <StackPanel>
-                                <TextBlock Text="{Binding CoachMarkDescription}" TextWrapping="Wrap" LineHeight="24" />
-                                <TextBlock Text="{Binding CoachMarks.ErrorMessage}" TextWrapping="Wrap" FontWeight="Bold"
-                                           Foreground="{DynamicResource MaterialDesign.Brush.ValidationError}"
-                                           AutomationProperties.LiveSetting="Assertive" />
-                            </StackPanel>
-                        </ScrollViewer>
-                        <WrapPanel Grid.Row="2" HorizontalAlignment="Right">
-                            <Button Content="{x:Static resx:Strings_CoachMarks.SkipButtonText}" Margin="0,4,8,0"
-                                    Style="{StaticResource MaterialDesignFlatButton}"
-                                    cal:Message.Attach="SkipCoachMark()"
-                                    Visibility="{Binding CoachMarks.CanSkip, Converter={StaticResource CoachMarkVisibility}}"
-                                    AutomationProperties.AutomationId="SkipCoachMark" />
-                            <Button Content="{Binding CoachMarks.NextButtonText}" Margin="0,4,0,0"
-                                    IsEnabled="{Binding CanNextCoachMark}"
-                                    cal:Message.Attach="NextCoachMark()"
-                                    AutomationProperties.AutomationId="NextCoachMark" />
-                        </WrapPanel>
-                    </Grid>
-                </Border>
+                    </Border>
+                </Grid>
             </coach:CoachMarkOverlay>
         </Grid>
     </md:DialogHost>

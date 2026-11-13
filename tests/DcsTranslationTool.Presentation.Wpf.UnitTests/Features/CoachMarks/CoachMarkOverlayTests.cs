@@ -288,9 +288,14 @@ public sealed class CoachMarkOverlayTests {
             WpfTestHelper.PumpDispatcher();
             window.UpdateLayout();
             var overlay = WpfTestHelper.GetRequiredDescendant<CoachMarkOverlay>( window );
-            var dialog = Assert.IsType<Border>( overlay.Children[1] );
+            var dialog = Assert.IsAssignableFrom<FrameworkElement>( overlay.Children[1] );
             Assert.True( double.IsNaN( dialog.Width ) );
             var scroll = WpfTestHelper.GetRequiredDescendant<ScrollViewer>( dialog );
+            var description = WpfTestHelper.GetRequiredDescendant<TextBlock>( scroll );
+            for(DependencyObject? element = description; element is not null && element != overlay;
+                element = VisualTreeHelper.GetParent( element )) {
+                if(element is UIElement visual) Assert.Null( visual.Effect );
+            }
             Assert.True( scroll.ActualHeight > 0 );
             Assert.True( scroll.ScrollableHeight > 0,
                 $"Dialog={dialog.RenderSize}, MaxHeight={dialog.MaxHeight}, Scroll={scroll.RenderSize}, Extent={scroll.ExtentHeight}, Viewport={scroll.ViewportHeight}" );
