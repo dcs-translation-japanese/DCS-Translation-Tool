@@ -86,7 +86,7 @@
                                 AutomationProperties.Name="{x:Static resx:Strings_Settings.Title}"
                                 ToolTip="{x:Static resx:Strings_Settings.Title}"
                                 cal:Message.Attach="NavToSettings()" />
-                
+
                     <Button x:Name="CloseWindowButton" Content="{md:PackIcon Kind=Close}"
                             Height="30"
                             Style="{StaticResource CloseButtonStyle}"
@@ -153,7 +153,7 @@
                                     </Thumb.Template>
                                 </Thumb>
                             </Grid>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,16,0,24">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,16,0,0">
                                 <StackPanel>
                                     <TextBlock Text="{Binding CoachMarkDescription}" TextWrapping="Wrap" LineHeight="24" />
                                     <TextBlock Text="{Binding CoachMarks.ErrorMessage}" TextWrapping="Wrap" FontWeight="Bold"
