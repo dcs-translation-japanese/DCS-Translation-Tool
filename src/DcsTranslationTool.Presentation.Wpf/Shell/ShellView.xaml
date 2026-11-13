@@ -88,6 +88,7 @@
                                 cal:Message.Attach="NavToSettings()" />
                 
                     <Button x:Name="CloseWindowButton" Content="{md:PackIcon Kind=Close}"
+                            Height="30"
                             Style="{StaticResource CloseButtonStyle}"
                             Click="CloseWindowButton_Click" />
                 </StackPanel>

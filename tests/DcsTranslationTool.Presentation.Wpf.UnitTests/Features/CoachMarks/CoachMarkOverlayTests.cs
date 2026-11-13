@@ -288,6 +288,14 @@ public sealed class CoachMarkOverlayTests {
             WpfTestHelper.PumpDispatcher();
             window.UpdateLayout();
             var overlay = WpfTestHelper.GetRequiredDescendant<CoachMarkOverlay>( window );
+            var close = Assert.IsType<Button>( window.FindName( "CloseWindowButton" ) );
+            var titlebar = Assert.IsType<Grid>( Assert.IsType<StackPanel>( close.Parent ).Parent );
+            var closeCenter = close.TranslatePoint( new Point( close.ActualWidth / 2, close.ActualHeight / 2 ), overlay );
+            var titlebarBottom = titlebar.TranslatePoint( new Point( 0, titlebar.ActualHeight ), overlay ).Y;
+            var mask = Assert.IsType<Path>( overlay.Children[0] );
+            Assert.False( mask.Data.FillContains( closeCenter ) );
+            Assert.True( mask.Data.FillContains( new Point( closeCenter.X, titlebarBottom + 1 ) ),
+                $"TitlebarHeight={titlebar.ActualHeight}, CloseHeight={close.ActualHeight}" );
             var dialog = Assert.IsAssignableFrom<FrameworkElement>( overlay.Children[1] );
             Assert.True( double.IsNaN( dialog.Width ) );
             var scroll = WpfTestHelper.GetRequiredDescendant<ScrollViewer>( dialog );
