@@ -6,6 +6,7 @@
       xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
       xmlns:resx="clr-namespace:DcsTranslationTool.Resources;assembly=DcsTranslationTool.Resources"
       xmlns:local="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.Settings"
+      xmlns:coach="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.CoachMarks"
       xmlns:common="clr-namespace:DcsTranslationTool.Presentation.Wpf.Features.Common"
       xmlns:cal="http://www.caliburnproject.org"
       mc:Ignorable="d"
@@ -33,31 +34,37 @@
                                Text="{x:Static resx:Strings_Settings.DcsWorldSectionTitle}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
 
-                    <TextBlock Margin="{StaticResource SmallTopMargin}"
+                    <TextBlock x:Name="DcsWorldInstallHeading" Margin="{StaticResource SmallTopMargin}"
                                Text="{x:Static resx:Strings_Settings.DcsWorldInstallDirText}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
                     <TextBlock Margin="{StaticResource XSmallTopMargin}"
                                Text="{x:Static resx:Strings_Settings.DcsWorldInstallDirExplanationText}"
                                TextWrapping="Wrap"
                                Style="{StaticResource MaterialDesignBodySmallTextBlock}" />
-                    <common:DirectoryPicker
+                    <common:DirectoryPicker coach:CoachMarkHighlight.TargetId="DcsWorldInstall"
+                                            coach:CoachMarkHighlight.ScrollAnchor="{Binding ElementName=DcsWorldInstallHeading}"
+                                            coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}"
                                             Path="{Binding DcsWorldInstallDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             Key="DcsWorldInstall"
                                             ButtonText="{x:Static resx:Strings_Settings.SelectButton}"
                                             Margin="{StaticResource MediumBottomMargin}"/>
 
-                    <TextBlock Text="{x:Static resx:Strings_Settings.SourceUserMissionDirText}"
+                    <TextBlock Text="{Binding InstallDirectoryError}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="UserMissionHeading" Text="{x:Static resx:Strings_Settings.SourceUserMissionDirText}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
                     <TextBlock Margin="{StaticResource XSmallTopMargin}"
                                Text="{x:Static resx:Strings_Settings.SourceUserMissionDirExplanationText}"
                                TextWrapping="Wrap"
                                Style="{StaticResource MaterialDesignBodySmallTextBlock}" />
-                    <common:DirectoryPicker
+                    <common:DirectoryPicker coach:CoachMarkHighlight.TargetId="UserMission"
+                                            coach:CoachMarkHighlight.ScrollAnchor="{Binding ElementName=UserMissionHeading}"
+                                            coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}"
                                             Path="{Binding SourceUserMissionDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             Key="UserMission"
                                             ButtonText="{x:Static resx:Strings_Settings.SelectButton}"
                                             Margin="{StaticResource MediumBottomMargin}" />
 
+                    <TextBlock Text="{Binding UserDirectoryError}" TextWrapping="Wrap" />
                     <TextBlock Margin="{StaticResource MediumTopMargin}"
                                Text="{x:Static resx:Strings_Settings.ExternalInjectionTitle}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
@@ -66,6 +73,9 @@
                                TextWrapping="Wrap"
                                Style="{StaticResource MaterialDesignBodySmallTextBlock}" />
 
+                    <StackPanel coach:CoachMarkHighlight.TargetId="ExternalAircraftInjection"
+                                coach:CoachMarkHighlight.ScrollAnchor="{Binding RelativeSource={RelativeSource Self}}"
+                                coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}">
                     <CheckBox Margin="0,8,0,0"
                               Padding="0"
                               VerticalContentAlignment="Center"
@@ -85,6 +95,10 @@
                                             ButtonText="{x:Static resx:Strings_Settings.SelectButton}"
                                             Margin="{StaticResource XSmallTopMargin}" />
 
+                    </StackPanel>
+                    <StackPanel coach:CoachMarkHighlight.TargetId="ExternalCampaignInjection"
+                                coach:CoachMarkHighlight.ScrollAnchor="{Binding RelativeSource={RelativeSource Self}}"
+                                coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}">
                     <CheckBox Margin="0,16,0,0"
                               Padding="0"
                               VerticalContentAlignment="Center"
@@ -104,22 +118,36 @@
                                             ButtonText="{x:Static resx:Strings_Settings.SelectButton}"
                                             Margin="{StaticResource XSmallTopMargin}" />
 
+                    </StackPanel>
                     <TextBlock Margin="{StaticResource MediumTopMargin}"
                                Text="{x:Static resx:Strings_Settings.DcsTranslationToolSectionTitle}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
 
-                    <TextBlock Margin="{StaticResource SmallTopMargin}"
+                    <TextBlock x:Name="TranslateFileHeading" Margin="{StaticResource SmallTopMargin}"
                                Text="{x:Static resx:Strings_Settings.TranslateFileDirText}"
                                Style="{StaticResource MaterialDesignHeadlineSmallTextBlock}" />
                     <TextBlock Margin="{StaticResource XSmallTopMargin}"
                                Text="{x:Static resx:Strings_Settings.SourceTranslateFileDirExplanationText}"
                                TextWrapping="Wrap"
                                Style="{StaticResource MaterialDesignBodySmallTextBlock}" />
-                    <common:DirectoryPicker
+                    <common:DirectoryPicker coach:CoachMarkHighlight.TargetId="TranslateFile"
+                                            coach:CoachMarkHighlight.ScrollAnchor="{Binding ElementName=TranslateFileHeading}"
+                                            coach:CoachMarkHighlight.CurrentTarget="{Binding CoachMarks.Target}"
                                             Path="{Binding TranslateFileDir, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                             Key="TranslateFile"
                                             Margin="{StaticResource XSmallTopMargin}"
                                             ButtonText="{x:Static resx:Strings_Settings.SelectButton}" />
+                </StackPanel>
+                <TextBlock Text="{Binding DownloadDirectoryError}" TextWrapping="Wrap" />
+                <StackPanel Margin="{StaticResource MediumTopMargin}">
+                    <TextBlock Text="{x:Static resx:Strings_Settings.TourTitle}"
+                               Style="{StaticResource MaterialDesignHeadlineMediumTextBlock}" />
+                    <Button Content="{x:Static resx:Strings_Settings.StartButtonText}"
+                            Margin="{StaticResource SmallTopMargin}"
+                            HorizontalAlignment="Left"
+                            cal:Message.Attach="StartCoachMark()"
+                            AutomationProperties.AutomationId="StartCoachMark" />
+                    <TextBlock Text="{Binding CoachMarkError}" TextWrapping="Wrap" />
                 </StackPanel>
                 <!-- About -->
                 <StackPanel Margin="{StaticResource MediumTopMargin}">

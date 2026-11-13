@@ -24,10 +24,13 @@ namespace DcsTranslationTool.Resources {
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Strings_Settings {
         
+        /// <summary>このリソースクラスで文字列の取得に使用するリソースマネージャー。</summary>
         private static global::System.Resources.ResourceManager resourceMan;
         
+        /// <summary>リソース検索に使用するカルチャー。未指定の場合は現在の UI カルチャーを使用する。</summary>
         private static global::System.Globalization.CultureInfo resourceCulture;
         
+        /// <summary>設定画面の文字列を提供するリソースクラスを初期化する。</summary>
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal Strings_Settings() {
         }
@@ -301,6 +304,33 @@ namespace DcsTranslationTool.Resources {
         }
         
         /// <summary>
+        ///   フォルダーを指定してください。 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string DirectoryRequiredMessage {
+            get {
+                return ResourceManager.GetString("DirectoryRequiredMessage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   実在するフォルダーを指定してください。 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string DirectoryNotFoundMessage {
+            get {
+                return ResourceManager.GetString("DirectoryNotFoundMessage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   ツアーを見る に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string StartButtonText {
+            get {
+                return ResourceManager.GetString("StartButtonText", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   設定 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title {
@@ -309,6 +339,15 @@ namespace DcsTranslationTool.Resources {
             }
         }
         
+        /// <summary>
+        ///   ツアー に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string TourTitle {
+            get {
+                return ResourceManager.GetString("TourTitle", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   翻訳ファイルダウンロードフォルダー に類似しているローカライズされた文字列を検索します。
         /// </summary>

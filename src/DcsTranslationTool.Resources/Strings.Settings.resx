@@ -201,13 +201,25 @@ DCS.openbeta の可能性もあるため注意してください。</value>
   <data name="SourceUserMissionDirText" xml:space="preserve">
     <value>ユーザーフォルダー</value>
   </data>
+  <data name="StartButtonText" xml:space="preserve">
+    <value>ツアーを見る</value>
+  </data>
   <data name="Title" xml:space="preserve">
     <value>設定</value>
+  </data>
+  <data name="TourTitle" xml:space="preserve">
+    <value>ツアー</value>
   </data>
   <data name="TranslateFileDirText" xml:space="preserve">
     <value>翻訳ファイルダウンロードフォルダー</value>
   </data>
   <data name="VersionDescriptionTitle" xml:space="preserve">
     <value>バージョン</value>
+  </data>
+  <data name="DirectoryRequiredMessage" xml:space="preserve">
+    <value>フォルダーを指定してください。</value>
+  </data>
+  <data name="DirectoryNotFoundMessage" xml:space="preserve">
+    <value>実在するフォルダーを指定してください。</value>
   </data>
 </root>

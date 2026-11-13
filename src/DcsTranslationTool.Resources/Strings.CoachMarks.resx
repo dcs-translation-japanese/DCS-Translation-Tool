@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="IntroductionTitle" xml:space="preserve">
+    <value>使い方のツアーを始めます</value>
+  </data>
+  <data name="IntroductionDescription" xml:space="preserve">
+    <value>初期設定から翻訳の注入まで、画面上の操作を順に案内します。準備ができたら「開始する」を押してください。ツアーはいつでもスキップできます。</value>
+  </data>
+  <data name="BeginButtonText" xml:space="preserve">
+    <value>開始する</value>
+  </data>
+  <data name="InstallDirectoryTitle" xml:space="preserve">
+    <value>DCS World のインストール先</value>
+  </data>
+  <data name="InstallDirectoryDescription" xml:space="preserve">
+    <value>DCS World をインストールしたフォルダーを指定してください。
+例)
+(スタンドアローン版) C:\Program Files\Eagle Dynamics\DCS World
+(Steam版) C:\Program Files (x86)\Steam\steamapps\common\DCSWorld
+
+「次へ」で保存して進みます。</value>
+  </data>
+  <data name="UserDirectoryTitle" xml:space="preserve">
+    <value>ユーザーフォルダー</value>
+  </data>
+  <data name="UserDirectoryDescription" xml:space="preserve">
+    <value>ユーザーミッションを置くフォルダーを指定してください。
+例) C:\Users\&lt;ユーザー名&gt;\Saved Games\DCS\Missions</value>
+  </data>
+  <data name="DownloadDirectoryTitle" xml:space="preserve">
+    <value>翻訳のダウンロード先</value>
+  </data>
+  <data name="DownloadDirectoryDescription" xml:space="preserve">
+    <value>翻訳ファイルを保存するフォルダーを指定してください。未作成のフォルダーも指定できます。</value>
+  </data>
+  <data name="AircraftRecommendationTitle" xml:space="preserve">
+    <value>Aircraft の注入先（推奨）</value>
+  </data>
+  <data name="AircraftRecommendationDescription" xml:space="preserve">
+    <value>通常、翻訳ファイルはDCS Worldのインストールフォルダー内に保存されますが、更新や整合性チェックで削除される場合があります。
+Open Mod ManagerなどのMod管理ツールを使用して、インストールフォルダー外への保存を推奨します。
+保存先を変更する場合は、チェックを入れて保存先を指定してください。変更しない場合は、そのまま「次へ」を押してください。</value>
+  </data>
+  <data name="CampaignRecommendationTitle" xml:space="preserve">
+    <value>Campaigns の注入先（推奨）</value>
+  </data>
+  <data name="CampaignRecommendationDescription" xml:space="preserve">
+    <value>DLC Campaigns もインストール先の外への注入を推奨します。
+チェックを入れて保存先を指定できます。
+変更せず「次へ」でも進めます。</value>
+  </data>
+  <data name="SelectTranslationTitle" xml:space="preserve">
+    <value>翻訳する対象を選ぶ</value>
+  </data>
+  <data name="SelectTranslationDescription" xml:space="preserve">
+    <value>タブとツリーから、翻訳を注入したい対象を選びます。
+ここでは、デフォルト付属機体の TF-51D を選択しましょう。</value>
+  </data>
+  <data name="ApplyTranslationTitle" xml:space="preserve">
+    <value>.miz に翻訳を注入する</value>
+  </data>
+  <data name="ApplyTranslationDescription" xml:space="preserve">
+    <value>「適用」を押してください。
+選択した翻訳をゲームに適用します。元の .miz は事前にバックアップしてください。</value>
+  </data>
+  <data name="TranslationAppliedTitle" xml:space="preserve">
+    <value>翻訳の注入に成功しました</value>
+  </data>
+  <data name="TranslationAppliedDescription" xml:space="preserve">
+    <value>選択した翻訳が .miz ファイルに注入されました。
+ゲーム内のオプション&gt;その他&gt;languageを「日本語」に設定することで、日本語でプレイできるようになります。</value>
+  </data>
+  <data name="DownloadTipTitle" xml:space="preserve">
+    <value>Tips：DLボタンについて</value>
+  </data>
+  <data name="DownloadTipDescription" xml:space="preserve">
+    <value>「DL」ボタンは、翻訳ファイルをネットからダウンロードするだけです。ゲームへの適用は行いません。
+ゲームに翻訳を適用するときは「適用」ボタンを使ってください。</value>
+  </data>
+  <data name="TranslationTipTitle" xml:space="preserve">
+    <value>Tips：翻訳を自作する</value>
+  </data>
+  <data name="TranslationTipDescription" xml:space="preserve">
+    <value>メニューの「翻訳」ボタンから、翻訳を自作することができます。</value>
+  </data>
+  <data name="UploadTipTitle" xml:space="preserve">
+    <value>Tips：自作した翻訳をアップロードする</value>
+  </data>
+  <data name="UploadTipDescription" xml:space="preserve">
+    <value>メニューの「Upload」ボタンから、自作した翻訳ファイルをアップロードができます。</value>
+  </data>
+  <data name="CompletedTitle" xml:space="preserve">
+    <value>ツアーは完了です</value>
+  </data>
+  <data name="CompletedDescription" xml:space="preserve">
+    <value>ツアーを終了します。
+設定画面の「ツアーを見る」から、いつでもツアーを確認できます。</value>
+  </data>
+  <data name="CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="NextButtonText" xml:space="preserve">
+    <value>次へ</value>
+  </data>
+  <data name="OpenSettingsTitle" xml:space="preserve">
+    <value>設定画面を開く</value>
+  </data>
+  <data name="OpenSettingsDescription" xml:space="preserve">
+    <value>右上の歯車ボタンを押して、設定画面を開いてください。</value>
+  </data>
+  <data name="GoBackTitle" xml:space="preserve">
+    <value>前の画面に戻る</value>
+  </data>
+  <data name="GoBackDescription" xml:space="preserve">
+    <value>左上の「←」ボタンを押してメニューに戻りましょう。</value>
+  </data>
+  <data name="OpenDownloadTitle" xml:space="preserve">
+    <value>Download 画面を開く</value>
+  </data>
+  <data name="OpenDownloadDescription" xml:space="preserve">
+    <value>「Download」ボタンを押して、翻訳の注入に進みます。</value>
+  </data>
+  <data name="SkipButtonText" xml:space="preserve">
+    <value>スキップ</value>
+  </data>
+  <data name="StartSaveFailureMessage" xml:space="preserve">
+    <value>設定を保存できないため操作案内を開始できません。もう一度お試しください。</value>
+  </data>
+  <data name="SaveFailureMessage" xml:space="preserve">
+    <value>設定を保存できませんでした。再試行するか案内をスキップしてください。</value>
+  </data>
+</root>

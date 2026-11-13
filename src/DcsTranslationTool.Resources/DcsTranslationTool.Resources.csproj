@@ -7,6 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <Compile Update="Strings.CoachMarks.Designer.cs">
+          <DesignTime>True</DesignTime>
+          <AutoGen>True</AutoGen>
+          <DependentUpon>Strings.CoachMarks.resx</DependentUpon>
+        </Compile>
         <Compile Update="Strings.CreatePullRequest.Designer.cs">
           <DesignTime>True</DesignTime>
           <AutoGen>True</AutoGen>
@@ -40,6 +45,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <EmbeddedResource Update="Strings.CoachMarks.resx">
+          <Generator>PublicResXFileCodeGenerator</Generator>
+          <LastGenOutput>Strings.CoachMarks.Designer.cs</LastGenOutput>
+        </EmbeddedResource>
         <EmbeddedResource Update="Strings.CreatePullRequest.resx">
           <Generator>PublicResXFileCodeGenerator</Generator>
           <LastGenOutput>Strings.CreatePullRequest.Designer.cs</LastGenOutput>

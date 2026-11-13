@@ -1,5 +1,6 @@
 using DcsTranslationTool.Application.Interfaces;
 using DcsTranslationTool.Domain.Models;
+using DcsTranslationTool.Presentation.Wpf.Features.CoachMarks;
 using DcsTranslationTool.Presentation.Wpf.Features.Common;
 using DcsTranslationTool.Presentation.Wpf.Services.Abstractions;
 using DcsTranslationTool.Presentation.Wpf.UI.Dialogs.Parameters;
@@ -25,7 +26,8 @@ public class DownloadViewModel(
     IFileEntryTreeService fileEntryTreeService,
     ILoggingService logger,
     ISnackbarService snackbarService,
-    ISystemService systemService
+    ISystemService systemService,
+    CoachMarkService? coachMarks = null
 ) : FileEntryTabsViewModelBase(
     apiService,
     dispatcherService,
@@ -38,11 +40,17 @@ public class DownloadViewModel(
 
     #region Fields
 
+    /// <summary>ダウンロード処理が実行中かどうかを保持する。</summary>
     private bool _isDownloading;
+    /// <summary>ダウンロード処理の進捗値を保持する。</summary>
     private double _downloadedProgress = 0.0;
+    /// <summary>翻訳の適用処理が実行中かどうかを保持する。</summary>
     private bool _isApplying;
+    /// <summary>翻訳の適用処理の進捗値を保持する。</summary>
     private double _appliedProgress = 0.0;
+    /// <summary>一括更新中にエントリー変更に伴う表示更新を抑制するフラグ。</summary>
     private bool _suppressEntriesChanged;
+    /// <summary>ダウンロード処理の通知を画面の状態に反映するアダプター。</summary>
     private DownloadWorkflowUiAdapter? _uiAdapter;
 
     /// <summary>
@@ -61,6 +69,10 @@ public class DownloadViewModel(
 
     #region Properties
 
+    /// <summary>画面で使用する操作案内サービス。操作案内を使用しない場合は null。</summary>
+    public CoachMarkService? CoachMarks => coachMarks;
+
+    /// <summary>ダウンロード処理が実行中かどうかを取得または設定する。</summary>
     public bool IsDownloading {
         get => _isDownloading;
         set {
@@ -69,11 +81,13 @@ public class DownloadViewModel(
         }
     }
 
+    /// <summary>ダウンロード処理の進捗値を取得または設定する。</summary>
     public double DownloadedProgress {
         get => _downloadedProgress;
         set => Set( ref _downloadedProgress, Math.Clamp( value, 0, 100 ) );
     }
 
+    /// <summary>翻訳の適用処理が実行中かどうかを取得または設定する。</summary>
     public bool IsApplying {
         get => _isApplying;
         set {
@@ -82,6 +96,7 @@ public class DownloadViewModel(
         }
     }
 
+    /// <summary>翻訳の適用処理の進捗値を取得または設定する。</summary>
     public double AppliedProgress {
         get => _appliedProgress;
         set => Set( ref _appliedProgress, Math.Clamp( value, 0, 100 ) );
@@ -147,53 +162,61 @@ public class DownloadViewModel(
             return;
         }
 
-        await ExecuteWithEntriesChangedSuppressedAsync( isDownload: false, async () => {
-            var selectedTab = GetSelectedTab();
-            var checkedEntries = selectedTab?.GetCheckedViewModels()
-                .Where( entry => !entry.IsDirectory )
-                .ToList()
-                ?? [];
-            var modifiedEntries = checkedEntries
-                .Where( entry => entry.ChangeType == FileChangeType.Modified )
-                .ToList();
+        var applySucceeded = false;
+        coachMarks?.BeginApply();
+        try {
+            await ExecuteWithEntriesChangedSuppressedAsync( isDownload: false, async () => {
+                var selectedTab = GetSelectedTab();
+                var checkedEntries = selectedTab?.GetCheckedViewModels()
+                    .Where( entry => !entry.IsDirectory )
+                    .ToList()
+                    ?? [];
+                var modifiedEntries = checkedEntries
+                    .Where( entry => entry.ChangeType == FileChangeType.Modified )
+                    .ToList();
 
-            if(modifiedEntries.Count > 0) {
-                var repositoryTargets = await ResolveRepositorySyncTargetsAsync( modifiedEntries );
-                if(repositoryTargets is null) {
-                    Logger.Warn( "差分ファイル適用確認で中止が選択されたため処理を終了する。" );
-                    return;
-                }
-
-                if(repositoryTargets.Count > 0) {
-                    var synced = await downloadWorkflowService.SyncModifiedFilesWithRepositoryAsync(
-                        repositoryTargets,
-                        appSettingsService.Settings.TranslateFileDir,
-                        UiAdapter.ShowSnackbarAsync
-                    );
-                    if(!synced) {
-                        Logger.Warn( "サーバー版での差分同期に失敗したため適用処理を中断する。" );
+                if(modifiedEntries.Count > 0) {
+                    var repositoryTargets = await ResolveRepositorySyncTargetsAsync( modifiedEntries );
+                    if(repositoryTargets is null) {
+                        Logger.Warn( "差分ファイル適用確認で中止が選択されたため処理を終了する。" );
                         return;
                     }
-                }
-            }
 
-            var request = new ApplyExecutionRequest(
-                selectedTab,
-                appSettingsService.Settings.DcsWorldInstallDir,
-                appSettingsService.Settings.SourceUserMissionDir,
-                appSettingsService.Settings.UseExternalAircraftInjectionDir,
-                appSettingsService.Settings.ExternalAircraftInjectionDir,
-                appSettingsService.Settings.UseExternalCampaignInjectionDir,
-                appSettingsService.Settings.ExternalCampaignInjectionDir,
-                appSettingsService.Settings.TranslateFileDir
-            );
-            var result = await downloadWorkflowService.ExecuteApplyAsync(
-                request,
-                UiAdapter.ShowSnackbarAsync,
-                UiAdapter.UpdateApplyProgressAsync
-            );
-            await HandleWorkflowEventsAsync( result.Events );
-        } );
+                    if(repositoryTargets.Count > 0) {
+                        var synced = await downloadWorkflowService.SyncModifiedFilesWithRepositoryAsync(
+                            repositoryTargets,
+                            appSettingsService.Settings.TranslateFileDir,
+                            UiAdapter.ShowSnackbarAsync
+                        );
+                        if(!synced) {
+                            Logger.Warn( "サーバー版での差分同期に失敗したため適用処理を中断する。" );
+                            return;
+                        }
+                    }
+                }
+
+                var request = new ApplyExecutionRequest(
+                    selectedTab,
+                    appSettingsService.Settings.DcsWorldInstallDir,
+                    appSettingsService.Settings.SourceUserMissionDir,
+                    appSettingsService.Settings.UseExternalAircraftInjectionDir,
+                    appSettingsService.Settings.ExternalAircraftInjectionDir,
+                    appSettingsService.Settings.UseExternalCampaignInjectionDir,
+                    appSettingsService.Settings.ExternalCampaignInjectionDir,
+                    appSettingsService.Settings.TranslateFileDir
+                );
+                var result = await downloadWorkflowService.ExecuteApplyAsync(
+                    request,
+                    UiAdapter.ShowSnackbarAsync,
+                    UiAdapter.UpdateApplyProgressAsync
+                );
+                applySucceeded = result.IsSuccess;
+                await HandleWorkflowEventsAsync( result.Events );
+            } );
+        }
+        finally {
+            coachMarks?.ApplyFinished( applySucceeded );
+        }
     }
 
     /// <summary>
@@ -372,6 +395,12 @@ public class DownloadViewModel(
     protected override void NotifyGuardProperties() {
         NotifyOfPropertyChange( nameof( CanDownload ) );
         NotifyOfPropertyChange( nameof( CanApply ) );
+        var hasMizTranslation = GetSelectedTab()?.GetCheckedViewModels().Any( entry =>
+            !entry.IsDirectory
+            && (coachMarks?.IsActive != true || entry.Path.StartsWith( CoachMarkService.TranslationSelectionPath + "/", StringComparison.Ordinal ))
+            && entry.Path.Split( '/' ).SkipLast( 1 ).Any( segment =>
+                segment.EndsWith( ".miz", StringComparison.OrdinalIgnoreCase ) ) ) == true;
+        coachMarks?.UpdateSelection( hasMizTranslation );
     }
 
     /// <inheritdoc />
