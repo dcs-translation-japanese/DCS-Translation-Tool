@@ -271,7 +271,7 @@ public class ApiServiceTests {
                 } );
             }
 
-            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
+            Assert.Equal( expected, GetRequestPaths( request ) );
 
             const string responsePayload =
                 """
@@ -317,7 +317,7 @@ public class ApiServiceTests {
             Interlocked.Increment( ref defaultRequestCount );
             Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
+            Assert.Equal( expected, GetRequestPaths( request ) );
 
             const string responsePayload =
                 """
@@ -370,7 +370,7 @@ public class ApiServiceTests {
             Interlocked.Increment( ref defaultRequestCount );
             Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
+            Assert.Equal( expected, GetRequestPaths( request ) );
 
             const string responsePayload =
                 """
@@ -640,7 +640,7 @@ public class ApiServiceTests {
     [Fact]
     public async Task DownloadFilePathsAsyncはv2にない条件付き取得を送信しない() {
         var client = CreateClient((request, _) => {
-            Assert.Equal( HttpMethod.Get, request.Method );
+            Assert.Equal( HttpMethod.Post, request.Method );
             Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
             Assert.False( request.Headers.Contains( "If-None-Match" ) );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.NotModified ) );
@@ -669,11 +669,11 @@ public class ApiServiceTests {
             """;
 
         var client = CreateClient((request, _) => {
-            Assert.Equal( HttpMethod.Get, request.Method );
+            Assert.Equal( HttpMethod.Post, request.Method );
             Assert.Equal( "/v2/files", request.RequestUri?.AbsolutePath );
 
-            Assert.Null( request.Content );
-            Assert.Equal( expected, GetQueryPaths( request.RequestUri! ) );
+            Assert.Equal( "application/json", request.Content!.Headers.ContentType!.MediaType );
+            Assert.Equal( expected, GetRequestPaths( request ) );
 
             var response = new HttpResponseMessage( HttpStatusCode.OK )
             {
@@ -751,105 +751,146 @@ public class ApiServiceTests {
     }
 
     [Theory]
-    [InlineData( 500 )]
+    [InlineData( 101 )]
     [InlineData( 1001 )]
-    public async Task DownloadFilePathsAsyncは総件数を制限せず100件ずつ取得して全件を返す( int count ) {
+    [InlineData( 10000 )]
+    public async Task DownloadFilePathsAsyncは上限内の全パスを一度のPOSTで取得する( int count ) {
         var paths = Enumerable.Range( 0, count ).Select( i => $"path/{i}" ).ToArray();
-        var received = new List<string>();
+        var requestCount = 0;
         var client = CreateClient((request, _) => {
-            Assert.Equal( HttpMethod.Get, request.Method );
-            Assert.Equal( "/v2/files", request.RequestUri!.AbsolutePath );
+            requestCount++;
+            Assert.Equal( HttpMethod.Post, request.Method );
+            Assert.Equal( "/v2/files", request.RequestUri!.PathAndQuery );
             Assert.False( request.Headers.Contains( "If-None-Match" ) );
-            var batch = GetQueryPaths( request.RequestUri );
-            Assert.Equal( Math.Min( 100, count - received.Count ), batch.Length );
-            received.AddRange( batch );
-            var response = new HttpResponseMessage( HttpStatusCode.OK )
+            Assert.Equal( "application/json", request.Content!.Headers.ContentType!.MediaType );
+            Assert.Equal( paths, GetRequestPaths( request ) );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
-                Content = JsonContent( new { files = batch.Select( path => new { path, url = "https://example.test/raw" } ) } ),
-            };
-            response.Headers.ETag = new EntityTagHeaderValue( "\"batch-etag\"" );
-            return Task.FromResult( response );
+                Content = JsonContent( new { files = paths.Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            } );
         });
         var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
             new ApiDownloadFilePathsRequest( paths, "\"old-etag\"" ), TestContext.Current.CancellationToken );
         Assert.True( result.IsSuccess );
-        Assert.Equal( paths, received );
+        Assert.Equal( 1, requestCount );
         Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
         Assert.Null( result.Value.ETag );
     }
 
-    [Theory]
-    [InlineData( 68 )]
-    [InlineData( 1001 )]
-    public async Task DownloadFilePathsAsyncはエンコード後のURL長で分割して全件を返す( int count ) {
-        var paths = Enumerable.Range( 0, count )
-            .Select( i => $"Mods/aircraft/TF-51D/{new string( '翻', 20 )}/{i} +&#?,%.lua" ).ToArray();
-        var received = new List<string>();
-        var requestCount = 0;
-        var client = CreateClient((request, _) => {
-            requestCount++;
-            var uri = request.RequestUri!;
-            Assert.InRange( uri.AbsoluteUri.Length, 1, 4096 );
-            var batch = GetQueryPaths( uri );
-            Assert.InRange( batch.Length, 1, 100 );
-            received.AddRange( batch );
-            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
-            {
-                Content = JsonContent( new { files = batch.Select( path => new { path, url = "https://example.test/raw" } ) } ),
-            } );
-        });
-
-        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
-            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
-
-        Assert.True( result.IsSuccess );
-        Assert.True( requestCount > 1 );
-        Assert.Equal( paths, received );
-        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
-    }
-
-    [Theory]
-    [InlineData( 0, 1 )]
-    [InlineData( 1, 2 )]
-    public async Task DownloadFilePathsAsyncはURL長4096文字の境界で分割する( int extraLength, int expectedRequests ) {
-        var paths = new[] { new string( 'a', 2000 ), new string( 'b', 2055 + extraLength ) };
-        var requestCount = 0;
-        var client = CreateClient((request, _) => {
-            requestCount++;
-            Assert.InRange( request.RequestUri!.AbsoluteUri.Length, 1, 4096 );
-            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
-            {
-                Content = JsonContent( new { files = GetQueryPaths( request.RequestUri ).Select( path => new { path, url = "https://example.test/raw" } ) } ),
-            } );
-        });
-
-        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
-            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
-
-        Assert.True( result.IsSuccess );
-        Assert.Equal( expectedRequests, requestCount );
-        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
-    }
-
     [Fact]
-    public async Task DownloadFilePathsAsyncは途中バッチ失敗時に部分的な結果を返さない() {
-        var client = CreateClient((request, _) => Task.FromResult(
-            GetQueryPaths( request.RequestUri! )[0] == "path/100"
-                ? new HttpResponseMessage( HttpStatusCode.BadRequest )
-                : new HttpResponseMessage( HttpStatusCode.OK )
-                {
-                    Content = JsonContent( new { files = GetQueryPaths( request.RequestUri! ).Select( path => new { path, url = "https://example.test/raw" } ) } ),
-                } ));
-        var paths = Enumerable.Range( 0, 101 ).Select( i => $"path/{i}" ).ToArray();
+    public async Task DownloadFilePathsAsyncは日本語と特殊文字の長いパスを分割せず送信する() {
+        var paths = Enumerable.Range( 0, 1001 )
+            .Select( i => $"Mods/aircraft/TF-51D/{new string( '翻', 20 )}/{i} +&#?,%.lua" ).ToArray();
+        var requestCount = 0;
+        var client = CreateClient((request, _) => {
+            requestCount++;
+            Assert.Equal( "/v2/files", request.RequestUri!.PathAndQuery );
+            Assert.Equal( paths, GetRequestPaths( request ) );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = paths.Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            } );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
+        Assert.True( result.IsSuccess );
+        Assert.Equal( 1, requestCount );
+        Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
+    }
+
+    [Theory]
+    [InlineData( 404 )]
+    [InlineData( 413 )]
+    [InlineData( 422 )]
+    public async Task DownloadFilePathsAsyncはAPIエラーを部分成功にしない( int status ) {
+        var calls = 0;
+        var client = CreateClient((request, _) => {
+            calls++;
+            Assert.Equal( HttpMethod.Post, request.Method );
+            return Task.FromResult( new HttpResponseMessage( (HttpStatusCode)status )
+            {
+                Content = new StringContent( JsonSerializer.Serialize( new { title = "Request rejected", status, code = "SNAPSHOT_LIMIT_EXCEEDED" } ), Encoding.UTF8, "application/problem+json" ),
+            } );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( ["path/one"], null ), TestContext.Current.CancellationToken );
+        Assert.True( result.IsFailed );
+        Assert.Equal( "API_HTTP_ERROR", result.Errors.Single().Metadata["code"] );
+        Assert.Equal( 3, calls );
+    }
+
+    [Theory]
+    [InlineData( 10001, 10, 'a', "API_PATHS_TOO_MANY" )]
+    [InlineData( 1, 4097, 'a', "API_PATH_TOO_LONG" )]
+    [InlineData( 1400, 4090, 'a', "API_REQUEST_TOO_LARGE" )]
+    [InlineData( 250, 4090, '翻', "API_REQUEST_TOO_LARGE" )]
+    public async Task DownloadFilePathsAsyncは上限超過を送信せず失敗にする( int count, int pathLength, char character, string code ) {
+        var calls = 0;
+        var client = CreateClient((_, _) => {
+            calls++;
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) );
+        });
+        var paths = Enumerable.Range( 0, count ).Select( i => $"{i:D5}/" + new string( character, pathLength - 6 ) ).ToArray();
         var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
             new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
         Assert.True( result.IsFailed );
+        Assert.Equal( code, result.Errors.Single().Metadata["code"] );
+        Assert.Equal( nameof( ResultErrorKind.Validation ), result.Errors.Single().Metadata["kind"] );
+        Assert.Equal( 0, calls );
+    }
+
+    [Theory]
+    [InlineData( 0 )]
+    [InlineData( 1 )]
+    public async Task DownloadFilePathsAsyncはJSON本文の5MiB境界を検証する( int extraBytes ) {
+        const int limit = 5 * 1024 * 1024;
+        var paths = Enumerable.Range( 0, 1280 ).Select( i => $"{i:D5}/" + new string( 'a', 4090 ) ).ToArray();
+        var excess = JsonSerializer.SerializeToUtf8Bytes( new { paths }, s_webOptions ).Length - limit - extraBytes;
+        paths[^1] = paths[^1][..^excess];
+        var calls = 0;
+        var client = CreateClient((request, _) => {
+            calls++;
+            Assert.Equal( limit, request.Content!.Headers.ContentLength );
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
+            {
+                Content = JsonContent( new { files = paths.Select( path => new { path, url = "https://example.test/raw" } ) } ),
+            } );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( paths, null ), TestContext.Current.CancellationToken );
+        Assert.Equal( extraBytes == 0, result.IsSuccess );
+        Assert.Equal( extraBytes == 0 ? 1 : 0, calls );
+        if(extraBytes != 0)
+            Assert.Equal( "API_REQUEST_TOO_LARGE", result.Errors.Single().Metadata["code"] );
+    }
+
+    [Fact]
+    public async Task DownloadFilePathsAsyncは送信中のキャンセルを成功にしない() {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource( TestContext.Current.CancellationToken );
+        HttpMethod? method = null;
+        string[]? receivedPaths = null;
+        var tokenCanceled = false;
+        var client = CreateClient((request, token) => {
+            method = request.Method;
+            receivedPaths = GetRequestPaths( request );
+            cts.Cancel();
+            tokenCanceled = token.IsCancellationRequested;
+            token.ThrowIfCancellationRequested();
+            return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK ) );
+        });
+        var result = await CreateSut( client, settings: PreferredDefault() ).DownloadFilePathsAsync(
+            new ApiDownloadFilePathsRequest( ["path/one"], null ), cts.Token );
+        Assert.True( tokenCanceled );
+        Assert.Equal( HttpMethod.Post, method );
+        Assert.Equal( ["path/one"], receivedPaths );
+        Assert.True( result.IsFailed );
+        Assert.Equal( "API_ROUTE_OPERATION_EXCEPTION", result.Errors.Single().Metadata["code"] );
     }
 
     [Fact]
     public async Task DownloadFilePathsAsyncは重複パスを一度だけ送信する() {
         var client = CreateClient((request, _) => {
-            Assert.Equal( ["path/one"], GetQueryPaths( request.RequestUri! ) );
+            Assert.Equal( ["path/one"], GetRequestPaths( request ) );
             return Task.FromResult( new HttpResponseMessage( HttpStatusCode.OK )
             {
                 Content = JsonContent( new { files = new[] { new { path = "path/one", url = "https://example.test/raw" } } } ),
@@ -870,9 +911,10 @@ public class ApiServiceTests {
         ApiPreferredRouteValidUntilUtc = DateTimeOffset.UtcNow.AddHours( 1 ),
     };
 
-    private static string[] GetQueryPaths( Uri uri ) =>
-        uri.Query.TrimStart( '?' ).Split( '&' )
-            .Select( part => Uri.UnescapeDataString( part.Split( '=', 2 )[1] ) ).ToArray();
+    private static string[] GetRequestPaths( HttpRequestMessage request ) {
+        using var body = JsonDocument.Parse( request.Content!.ReadAsStringAsync().GetAwaiter().GetResult() );
+        return body.RootElement.GetProperty( "paths" ).EnumerateArray().Select( path => path.GetString()! ).ToArray();
+    }
 
     private static ApiService CreateSut(
         HttpClient defaultClient,

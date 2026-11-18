@@ -5,31 +5,30 @@ using Microsoft.Kiota.Abstractions.Serialization;
 using System.Collections.Generic;
 using System.IO;
 using System;
-namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson
+namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
 {
     [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
     #pragma warning disable CS1591
-    public partial class OpenapiGetResponse_info : IAdditionalDataHolder, IParsable
+    public partial class FilesPostRequestBody : IParsable
     #pragma warning restore CS1591
     {
-        /// <summary>Stores additional data not described in the OpenAPI description found when deserializing. Can be used for serialization as well.</summary>
-        public IDictionary<string, object> AdditionalData { get; set; }
-        /// <summary>
-        /// Instantiates a new <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson.OpenapiGetResponse_info"/> and sets the default values.
-        /// </summary>
-        public OpenapiGetResponse_info()
-        {
-            AdditionalData = new Dictionary<string, object>();
-        }
+        /// <summary>The paths property</summary>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public List<string>? Paths { get; set; }
+#nullable restore
+#else
+        public List<string> Paths { get; set; }
+#endif
         /// <summary>
         /// Creates a new instance of the appropriate class based on discriminator value
         /// </summary>
-        /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson.OpenapiGetResponse_info"/></returns>
+        /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody"/></returns>
         /// <param name="parseNode">The parse node to use to read the discriminator value and create the object</param>
-        public static global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson.OpenapiGetResponse_info CreateFromDiscriminatorValue(IParseNode parseNode)
+        public static global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody CreateFromDiscriminatorValue(IParseNode parseNode)
         {
             if(ReferenceEquals(parseNode, null)) throw new ArgumentNullException(nameof(parseNode));
-            return new global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson.OpenapiGetResponse_info();
+            return new global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody();
         }
         /// <summary>
         /// The deserialization information for the current model
@@ -39,6 +38,7 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson
         {
             return new Dictionary<string, Action<IParseNode>>
             {
+                { "paths", n => { Paths = n.GetCollectionOfPrimitiveValues<string>()?.AsList(); } },
             };
         }
         /// <summary>
@@ -48,7 +48,7 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.OpenapiJson
         public virtual void Serialize(ISerializationWriter writer)
         {
             if(ReferenceEquals(writer, null)) throw new ArgumentNullException(nameof(writer));
-            writer.WriteAdditionalData(AdditionalData);
+            writer.WriteCollectionOfPrimitiveValues<string>("paths", Paths);
         }
     }
 }

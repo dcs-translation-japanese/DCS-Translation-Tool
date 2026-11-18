@@ -33,6 +33,9 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
         public FilesRequestBuilder(string rawUrl, IRequestAdapter requestAdapter) : base(requestAdapter, "{+baseurl}/v2/files?path={path}", rawUrl)
         {
         }
+        /// <summary>
+        /// 指定したファイル情報とコミット固定URLを指定順で返す。GET /v2/tree・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。新規ファイルは反映まで404になる場合があり、master更新からD1反映までの数秒は内容と更新日時がずれる場合がある。
+        /// </summary>
         /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Files"/></returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
@@ -65,6 +68,52 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
             };
             return await RequestAdapter.SendAsync<global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Files>(requestInfo, global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Files.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
+        /// <summary>
+        /// JSON本文のpathsに重複のない1〜10,000件を指定する。本文は最大5 MiB、UTF-8 JSON応答は最大8 MiB。GET /filesと同じパス検証・応答形式を使用し、全ファイルを同一コミットSHAに固定して指定順で返す。認証不要の読み取り専用操作。存在しないパスは404、本文超過は413、応答超過は422 SNAPSHOT_LIMIT_EXCEEDEDとし、分割・部分結果は返さない。GET /v2/tree・GET /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。新規ファイルは反映まで404になる場合があり、master更新からD1反映までの数秒は内容と更新日時がずれる場合がある。
+        /// </summary>
+        /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.QueriedFiles"/></returns>
+        /// <param name="body">The request body</param>
+        /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
+        /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 400 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 404 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 406 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 413 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 415 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 422 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 500 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 502 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 503 status code</exception>
+        /// <exception cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem">When receiving a 4XX or 5XX status code</exception>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public async Task<global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.QueriedFiles?> PostAsync(global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>>? requestConfiguration = default, CancellationToken cancellationToken = default)
+        {
+#nullable restore
+#else
+        public async Task<global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.QueriedFiles> PostAsync(global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>> requestConfiguration = default, CancellationToken cancellationToken = default)
+        {
+#endif
+            if(ReferenceEquals(body, null)) throw new ArgumentNullException(nameof(body));
+            var requestInfo = ToPostRequestInformation(body, requestConfiguration);
+            var errorMapping = new Dictionary<string, ParsableFactory<IParsable>>
+            {
+                { "400", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "404", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "406", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "413", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "415", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "422", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "500", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "502", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "503", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+                { "XXX", global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.Problem.CreateFromDiscriminatorValue },
+            };
+            return await RequestAdapter.SendAsync<global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.QueriedFiles>(requestInfo, global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.QueriedFiles.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
+        }
+        /// <summary>
+        /// 指定したファイル情報とコミット固定URLを指定順で返す。GET /v2/tree・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。新規ファイルは反映まで404になる場合があり、master更新からD1反映までの数秒は内容と更新日時がずれる場合がある。
+        /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
@@ -82,6 +131,28 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
             return requestInfo;
         }
         /// <summary>
+        /// JSON本文のpathsに重複のない1〜10,000件を指定する。本文は最大5 MiB、UTF-8 JSON応答は最大8 MiB。GET /filesと同じパス検証・応答形式を使用し、全ファイルを同一コミットSHAに固定して指定順で返す。認証不要の読み取り専用操作。存在しないパスは404、本文超過は413、応答超過は422 SNAPSHOT_LIMIT_EXCEEDEDとし、分割・部分結果は返さない。GET /v2/tree・GET /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。新規ファイルは反映まで404になる場合があり、master更新からD1反映までの数秒は内容と更新日時がずれる場合がある。
+        /// </summary>
+        /// <returns>A <see cref="RequestInformation"/></returns>
+        /// <param name="body">The request body</param>
+        /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
+#nullable enable
+        public RequestInformation ToPostRequestInformation(global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>>? requestConfiguration = default)
+        {
+#nullable restore
+#else
+        public RequestInformation ToPostRequestInformation(global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesPostRequestBody body, Action<RequestConfiguration<DefaultQueryParameters>> requestConfiguration = default)
+        {
+#endif
+            if(ReferenceEquals(body, null)) throw new ArgumentNullException(nameof(body));
+            var requestInfo = new RequestInformation(Method.POST, "{+baseurl}/v2/files", PathParameters);
+            requestInfo.Configure(requestConfiguration);
+            requestInfo.Headers.TryAdd("Accept", "application/json");
+            requestInfo.SetContentFromParsable(RequestAdapter, "application/json", body);
+            return requestInfo;
+        }
+        /// <summary>
         /// Returns a request builder with the provided arbitrary URL. Using this method means any other path or query parameters are ignored.
         /// </summary>
         /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesRequestBuilder"/></returns>
@@ -90,10 +161,11 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
         {
             return new global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesRequestBuilder(rawUrl, RequestAdapter);
         }
+        /// <summary>
+        /// 指定したファイル情報とコミット固定URLを指定順で返す。GET /v2/tree・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。新規ファイルは反映まで404になる場合があり、master更新からD1反映までの数秒は内容と更新日時がずれる場合がある。
+        /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
-        #pragma warning disable CS1591
         public partial class FilesRequestBuilderGetQueryParameters 
-        #pragma warning restore CS1591
         {
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP3_1_OR_GREATER
 #nullable enable
@@ -111,6 +183,14 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files
         [Obsolete("This class is deprecated. Please use the generic RequestConfiguration class generated by the generator.")]
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class FilesRequestBuilderGetRequestConfiguration : RequestConfiguration<global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Files.FilesRequestBuilder.FilesRequestBuilderGetQueryParameters>
+        {
+        }
+        /// <summary>
+        /// Configuration for the request such as headers, query parameters, and middleware options.
+        /// </summary>
+        [Obsolete("This class is deprecated. Please use the generic RequestConfiguration class generated by the generator.")]
+        [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
+        public partial class FilesRequestBuilderPostRequestConfiguration : RequestConfiguration<DefaultQueryParameters>
         {
         }
     }
