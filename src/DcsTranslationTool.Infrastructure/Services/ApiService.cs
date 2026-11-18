@@ -413,34 +413,44 @@ public class ApiService(
         if(sanitizeResult.IsFailed)
             return Result.Fail( sanitizeResult.Errors );
 
+        var paths = sanitizeResult.Value.Distinct( StringComparer.Ordinal ).ToArray();
+        if(paths.Length > 10000)
+            return Result.Fail( ResultErrorFactory.Validation( "Paths は10,000件以内で指定してください。", "API_PATHS_TOO_MANY" ) );
+        if(paths.Any( path => path.Length > 4096 ))
+            return Result.Fail( ResultErrorFactory.Validation( "各パスは4,096文字以内で指定してください。", "API_PATH_TOO_LONG" ) );
+
         try {
+            var body = JsonSerializer.SerializeToUtf8Bytes( new { paths }, SerializerOptions );
+            if(body.Length > 5 * 1024 * 1024)
+                return Result.Fail( ResultErrorFactory.Validation( "リクエスト本文は5 MiB以内で指定してください。", "API_REQUEST_TOO_LARGE" ) );
+
             return await ExecuteWithRouteFallbackAsync(
                 async ( routeClient, token ) => {
-                    var items = new List<ApiDownloadFilePathsItem>();
-                    foreach(var query in CreateDownloadQueries( sanitizeResult.Value.Distinct( StringComparer.Ordinal ), routeClient.Client.BaseAddress! )) {
-                        // Kiota 1.29 は配列クエリをカンマ区切りにするため、v2 の繰り返し path を構築する。
-                        using var message = new HttpRequestMessage( HttpMethod.Get, $"v2/files?{query}" );
-                        message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/json" ) );
-                        message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
-                        using var response = await routeClient.Client
-                            .SendAsync( message, HttpCompletionOption.ResponseHeadersRead, token )
-                            .ConfigureAwait( false );
+                    using var message = new HttpRequestMessage( HttpMethod.Post, "v2/files" )
+                    {
+                        Content = new ByteArrayContent( body ),
+                    };
+                    message.Content.Headers.ContentType = new MediaTypeHeaderValue( "application/json" );
+                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/json" ) );
+                    message.Headers.Accept.Add( new MediaTypeWithQualityHeaderValue( "application/problem+json" ) );
+                    using var response = await routeClient.Client
+                        .SendAsync( message, HttpCompletionOption.ResponseHeadersRead, token )
+                        .ConfigureAwait( false );
 
-                        var ensureResult = await EnsureSuccessStatusCodeAsync( response, token ).ConfigureAwait( false );
-                        if(ensureResult.IsFailed)
-                            return Result.Fail( ensureResult.Errors );
+                    var ensureResult = await EnsureSuccessStatusCodeAsync( response, token ).ConfigureAwait( false );
+                    if(ensureResult.IsFailed)
+                        return Result.Fail( ensureResult.Errors );
 
-                        using var stream = await response.Content.ReadAsStreamAsync( token ).ConfigureAwait( false );
-                        var node = await new JsonParseNodeFactory().GetRootParseNodeAsync( "application/json", stream, token ).ConfigureAwait( false );
-                        var payload = node.GetObjectValue( Files.CreateFromDiscriminatorValue );
-                        if(payload?.FilesProp is null)
-                            return Result.Fail( ResultErrorFactory.External( "Response files were missing.", "API_EMPTY_RESPONSE" ) );
+                    using var stream = await response.Content.ReadAsStreamAsync( token ).ConfigureAwait( false );
+                    var node = await new JsonParseNodeFactory().GetRootParseNodeAsync( "application/json", stream, token ).ConfigureAwait( false );
+                    var payload = node.GetObjectValue( QueriedFiles.CreateFromDiscriminatorValue );
+                    if(payload?.Files is null)
+                        return Result.Fail( ResultErrorFactory.External( "Response files were missing.", "API_EMPTY_RESPONSE" ) );
 
-                        items.AddRange( payload.FilesProp
-                            .Where( file => !string.IsNullOrWhiteSpace( file.Url ) && !string.IsNullOrWhiteSpace( file.Path ) )
-                            .Select( file => new ApiDownloadFilePathsItem( file.Url!, file.Path! ) ) );
-                    }
-
+                    var items = payload.Files
+                        .Where( file => !string.IsNullOrWhiteSpace( file.Url ) && !string.IsNullOrWhiteSpace( file.Path ) )
+                        .Select( file => new ApiDownloadFilePathsItem( file.Url!, file.Path! ) )
+                        .ToArray();
                     return Result.Ok( new ApiDownloadFilePathsResult( items, null ) );
                 },
                 "DownloadFilePathsAsync",
@@ -535,29 +545,6 @@ public class ApiService(
     }
 
     /// <summary>件数とエンコード後の絶対URL長でダウンロードクエリを分割する。</summary>
-    private static IEnumerable<string> CreateDownloadQueries( IEnumerable<string> paths, Uri baseAddress ) {
-        // 4,520バイトでの成功実績より小さい余裕を持った上限にする。
-        const int maxUrlLength = 4096;
-        var prefixLength = new Uri( baseAddress, "v2/files?" ).AbsoluteUri.Length;
-        var parts = new List<string>();
-        var length = prefixLength;
-        foreach(var path in paths) {
-            var part = $"path={Uri.EscapeDataString( path )}";
-            if(parts.Count > 0 && (parts.Count == 100 || length + 1 + part.Length > maxUrlLength)) {
-                yield return string.Join( "&", parts );
-                parts.Clear();
-                length = prefixLength;
-            }
-
-            // 単一パスは分割できないため、そのまま送信して既存のAPIエラー処理に委ねる。
-            length += (parts.Count > 0 ? 1 : 0) + part.Length;
-            parts.Add( part );
-        }
-
-        if(parts.Count > 0)
-            yield return string.Join( "&", parts );
-    }
-
     /// <summary>パス一覧を検証し、空白除去済み配列へ正規化する。</summary>
     /// <param name="paths">検証対象のパス一覧。</param>
     /// <returns>成功時は正規化済みパス配列、失敗時は検証エラーを返す。</returns>

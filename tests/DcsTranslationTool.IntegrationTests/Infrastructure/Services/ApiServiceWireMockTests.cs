@@ -172,7 +172,7 @@ public sealed class ApiServiceWireMockTests {
     public async Task DownloadFilePathsAsyncはWireMockでHTTP契約を満たす() {
         using var server = new WireMockTestServer();
         server.Server
-            .Given( Request.Create().WithPath( "/v2/files" ).UsingGet() )
+            .Given( Request.Create().WithPath( "/v2/files" ).UsingPost() )
             .RespondWith(
                 Response.Create()
                     .WithStatusCode( (int)HttpStatusCode.OK )
@@ -209,14 +209,17 @@ public sealed class ApiServiceWireMockTests {
             } );
 
         var request = RequireSingleRequest( server, "/v2/files" );
-        Assert.Equal( "GET", request.Method );
+        Assert.Equal( "POST", request.Method );
         Assert.Equal( "/v2/files", request.Path );
         Assert.Contains( request.AcceptHeaders, value => value.Contains( "application/json", StringComparison.Ordinal ) );
         Assert.Contains( request.AcceptHeaders, value => value.Contains( "application/problem+json", StringComparison.Ordinal ) );
-        Assert.Empty( request.Body );
+        Assert.Contains( request.Headers["Content-Type"], value => value.Contains( "application/json", StringComparison.Ordinal ) );
         Assert.False( request.Headers.ContainsKey( "If-None-Match" ) );
-        var query = server.Server.LogEntries.Single( entry => entry.RequestMessage?.Path == "/v2/files" ).RequestMessage!.Query!;
-        Assert.Equal( ["フォルダ/a +&#?,%.lua", "path/two"], query["path"] );
+        using var body = JsonDocument.Parse( request.Body );
+        Assert.Equal( ["paths"], body.RootElement.EnumerateObject().Select( property => property.Name ) );
+        Assert.Equal( ["フォルダ/a +&#?,%.lua", "path/two"],
+            body.RootElement.GetProperty( "paths" ).EnumerateArray().Select( path => path.GetString() ) );
+        Assert.Empty( server.Server.LogEntries.Single( entry => entry.RequestMessage?.Path == "/v2/files" ).RequestMessage!.Query! );
     }
 
     /// <summary>
@@ -226,7 +229,7 @@ public sealed class ApiServiceWireMockTests {
     public async Task DownloadFilePathsAsyncはWireMockで304を失敗として扱う() {
         using var server = new WireMockTestServer();
         server.Server
-            .Given( Request.Create().WithPath( "/v2/files" ).UsingGet() )
+            .Given( Request.Create().WithPath( "/v2/files" ).UsingPost() )
             .RespondWith(
                 Response.Create()
                     .WithStatusCode( (int)HttpStatusCode.NotModified )
@@ -341,21 +344,19 @@ public sealed class ApiServiceWireMockTests {
 
     [Theory]
     [InlineData( 101 )]
-    [InlineData( 500 )]
     [InlineData( 1001 )]
-    public async Task DownloadFilePathsAsyncはWireMockで100件ずつの繰り返しクエリを送信する( int count ) {
+    public async Task DownloadFilePathsAsyncはWireMockで全パスを一度のPOST本文に送信する( int count ) {
         using var server = new WireMockTestServer();
-        var paths = Enumerable.Range( 0, count ).Select( i => $"p/{i} +&#?,%.lua" ).ToArray();
-        foreach(var batch in paths.Chunk( 100 )) {
-            server.Server
-                .Given( Request.Create().WithPath( "/v2/files" ).WithParam( "path", batch ).UsingGet() )
-                .RespondWith( Response.Create().WithStatusCode( 200 )
-                    .WithHeader( "Content-Type", "application/json" )
-                    .WithHeader( "ETag", "\"batch-etag\"" )
-                    .WithBody( JsonSerializer.Serialize( new {
-                        files = batch.Select( path => new { path, url = "https://example.test/raw" } ),
-                    } ) ) );
-        }
+        var paths = Enumerable.Range( 0, count ).Select( i => $"フォルダ/{i} +&#?,%.lua" ).ToArray();
+        server.Server
+            .Given( Request.Create().WithPath( "/v2/files" ).UsingPost() )
+            .RespondWith( Response.Create().WithStatusCode( 200 )
+                .WithHeader( "Content-Type", "application/json" )
+                .WithBody( JsonSerializer.Serialize( new {
+                    commitSha = new string( 'a', 40 ),
+                    generatedAt = "2026-01-01T00:00:00Z",
+                    files = paths.Select( path => new { path, url = "https://example.test/raw" } ),
+                } ) ) );
         var settings = new AppSettings
         {
             ApiPreferredRoute = ApiRoutePreference.Default,
@@ -366,13 +367,12 @@ public sealed class ApiServiceWireMockTests {
         Assert.True( result.IsSuccess, string.Join( "; ", result.Errors.Select( error => error.Message ) ) );
         Assert.Equal( paths, result.Value.Items.Select( item => item.Path ) );
         Assert.Null( result.Value.ETag );
-        var requests = server.Server.LogEntries.Select( entry => entry.RequestMessage! ).ToArray();
-        Assert.Equal( (count + 99) / 100, requests.Length );
-        Assert.All( requests, request => {
-            Assert.Equal( "GET", request.Method );
-            Assert.InRange( request.Query!["path"].Count, 1, 100 );
-            Assert.False( request.Headers?.ContainsKey( "If-None-Match" ) ?? false );
-        } );
+        var request = Assert.Single( server.Server.LogEntries ).RequestMessage!;
+        Assert.Equal( "POST", request.Method );
+        Assert.Empty( request.Query! );
+        Assert.False( request.Headers?.ContainsKey( "If-None-Match" ) ?? false );
+        using var body = JsonDocument.Parse( request.Body! );
+        Assert.Equal( paths, body.RootElement.GetProperty( "paths" ).EnumerateArray().Select( path => path.GetString() ) );
     }
 
     /// <summary>

@@ -34,7 +34,7 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Tree
         {
         }
         /// <summary>
-        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
+        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。GET /v2/files・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。master更新からD1反映までの数秒は、内容と更新日時がずれる場合がある。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
         /// </summary>
         /// <returns>A <see cref="global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.TreeSnapshot"/></returns>
         /// <param name="cancellationToken">Cancellation token to use when cancelling requests</param>
@@ -69,7 +69,7 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Tree
             return await RequestAdapter.SendAsync<global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.TreeSnapshot>(requestInfo, global::DcsTranslationTool.Infrastructure.Http.ApiClient.Models.TreeSnapshot.CreateFromDiscriminatorValue, errorMapping, cancellationToken).ConfigureAwait(false);
         }
         /// <summary>
-        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
+        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。GET /v2/files・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。master更新からD1反映までの数秒は、内容と更新日時がずれる場合がある。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
         /// </summary>
         /// <returns>A <see cref="RequestInformation"/></returns>
         /// <param name="requestConfiguration">Configuration for the request such as headers, query parameters, and middleware options.</param>
@@ -97,7 +97,7 @@ namespace DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Tree
             return new global::DcsTranslationTool.Infrastructure.Http.ApiClient.V2.Tree.TreeRequestBuilder(rawUrl, RequestAdapter);
         }
         /// <summary>
-        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
+        /// 毎回全件取得する用途向け。limitは既定・最大10,000件、各ページのUTF-8 JSON応答は最大8 MiB。サイズ上限によりlimit未満でも続きがあるため、page.nextCursorがnullになるまで同じlimitで取得し、完了後にのみ削除判定する。cursorは取得開始から24時間有効で、全ページを同一コミットに固定する。GET /v2/files・POST /v2/filesと、同じデータセンター・origin・リポジトリのキャッシュを共有する。最新コミットは60秒、SHA固定のGitHubツリーは1年間キャッシュする（保持は保証しない）。D1の登録済み更新日時は毎回取得し、応答全体はCache-Control: no-storeとする。masterの変更反映は最大約60秒遅れ、別リクエスト間の同一コミットは保証しない。master更新からD1反映までの数秒は、内容と更新日時がずれる場合がある。全スナップショットは最大10,000件・UTF-8 JSON 20 MiB。上限超過は422 SNAPSHOT_LIMIT_EXCEEDED、GitHubのツリー切り詰めは502とし、不完全な一覧は返さない。
         /// </summary>
         [global::System.CodeDom.Compiler.GeneratedCode("Kiota", "1.0.0")]
         public partial class TreeRequestBuilderGetQueryParameters 
