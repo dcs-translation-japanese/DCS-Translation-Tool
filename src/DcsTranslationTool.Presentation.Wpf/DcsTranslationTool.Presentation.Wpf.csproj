@@ -14,7 +14,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <Version>2.1.0</Version> <!-- x-release-please-version -->
+        <Version>2.2.0</Version> <!-- x-release-please-version -->
         <AssemblyVersion>1.0.0.0</AssemblyVersion>
         <FileVersion>$(Version).0</FileVersion>
         <InformationalVersion>$(Version)</InformationalVersion>

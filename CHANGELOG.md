@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.0](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/compare/v2.1.0...v2.2.0) (2026-10-29)
+
+
+### Features
+
+* **update:** アプリ内差分アップデートに対応 ([#159](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/issues/159)) ([b0e9e55](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/commit/b0e9e5532b56ccfe612b00ed01af40219e0bf2ca))
+
+
+### Bug Fixes
+
+* Bump coverlet.collector from 8.0.1 to 10.0.1 ([#133](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/issues/133)) ([abea0cd](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/commit/abea0cda3f855cc5a9c47ab9de0053934135f9e4))
+* Bump Microsoft.Kiota.Abstractions and Microsoft.Kiota.Http.HttpClientLibrary ([#126](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/issues/126)) ([c9e23bd](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/commit/c9e23bd8ae306bafa2f9bdf0d809b79ebdc2d3ee))
+* Toolの参照先と更新テストをOrg構成へ変更する ([#189](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/issues/189)) ([604bcff](https://github.com/dcs-translation-japanese/DCS-Translation-Tool/commit/604bcff1a0b4eff458aa4bfb8488f1724612a998))
+
 ## [2.1.0](https://github.com/5kdn/DCS-Translation-Tool/compare/v2.0.0...v2.1.0) (2026-04-18)
 
 
